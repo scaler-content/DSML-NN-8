@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neural Networks 8 post read</title>
+<style>
+:root{
+  --bg:#EFF6E9; --paper:#F9FCF5; --mint:#DCEBD0; --mint2:#C4DDB2; --line:#B5D0A2;
+  --green:#3E8E4E; --forest:#1C4630; --ink:#22372A; --muted:#4E6656;
+  --orange:#F28A1E; --orange-line:#D96800; --orange-deep:#A34D00; --orange-soft:#FFE7CF;
+  --c-vanilla:#66806E; --c-momentum:#D96800; --c-rms:#3E9B54; --c-adam:#14472D;
+  --serif:'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;
+  --sans:'Avenir Next','Segoe UI',system-ui,-apple-system,Roboto,'Helvetica Neue',Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px;-webkit-text-size-adjust:100%}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font:18px/1.7 var(--serif)}
+a{color:var(--orange-deep);text-underline-offset:3px}
+a:hover{color:var(--forest)}
+:focus-visible{outline:3px solid var(--forest);outline-offset:2px;border-radius:4px}
+.skip{position:absolute;left:-999px;top:8px;background:var(--forest);color:#fff;padding:8px 14px;border-radius:8px;z-index:100;font-family:var(--sans)}
+.skip:focus{left:8px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* top bar */
+.topbar{position:sticky;top:0;z-index:50;height:52px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;background:rgba(239,246,233,.95);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);font-family:var(--sans)}
+.topbar .brand{font-weight:700;color:var(--forest);font-size:15px;text-decoration:none}
+.topbar button{font:600 14px var(--sans);color:var(--forest);background:var(--mint);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+.progress{position:absolute;left:0;bottom:-1px;height:3px;width:100%;transform-origin:left;transform:scaleX(var(--p,0));background:var(--orange)}
+
+/* hero */
+.hero{background:var(--mint);border-bottom:1px solid var(--line)}
+.hero-in{max-width:1180px;margin:0 auto;padding:56px 24px 52px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:44px;align-items:center}
+h1{font:800 clamp(2.4rem,5.2vw,3.7rem)/1.04 var(--serif);letter-spacing:-.02em;color:var(--forest);margin:0 0 18px}
+.sub{font:600 1.25rem/1.4 var(--sans);color:var(--orange-deep);margin:0 0 16px}
+.lede{margin:0;max-width:34em;color:var(--ink)}
+
+/* layout */
+.layout{max-width:1180px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:210px minmax(0,860px);gap:52px;justify-content:center}
+.toc{position:sticky;top:76px;align-self:start;padding:34px 0;font:15px/1.35 var(--sans);max-height:calc(100vh - 76px);overflow:auto}
+.toc ol{list-style:none;margin:0;padding:0;border-left:2px solid var(--line)}
+.toc a{display:block;padding:7px 12px;margin-left:-2px;border-left:3px solid transparent;color:var(--muted);text-decoration:none}
+.toc a:hover{color:var(--forest);background:var(--mint)}
+.toc a[aria-current="true"]{color:var(--forest);font-weight:700;border-left-color:var(--orange)}
+.topbar .menu-btn{display:none}
+main{padding-bottom:40px;min-width:0}
+section.sec{padding-top:56px}
+h2{font:800 clamp(1.7rem,3.4vw,2.35rem)/1.15 var(--serif);letter-spacing:-.015em;color:var(--forest);margin:0 0 18px}
+h3{font:700 1.3rem/1.3 var(--serif);color:var(--forest);margin:38px 0 10px}
+p{margin:0 0 1.05em;max-width:66ch}
+ul.plain{padding-left:1.2em;max-width:66ch}
+strong{color:var(--forest)}
+var{font-style:italic}
+
+/* callouts */
+.callout{border-radius:10px;padding:14px 18px;margin:22px 0;max-width:none;font-size:17px;line-height:1.6}
+.callout>:last-child{margin-bottom:0}
+.callout .ttl{font:700 15px var(--sans);display:block;margin-bottom:4px}
+.callout.aria{background:var(--orange-soft);border-left:5px solid var(--orange)}
+.callout.aria .ttl{color:var(--orange-deep)}
+.callout.note{background:var(--mint);border-left:5px solid var(--green)}
+.callout.note .ttl{color:var(--forest)}
+.callout.observe{background:var(--paper);border:1px solid var(--line);border-left:5px solid var(--forest)}
+
+/* analogy grid */
+.map{display:grid;grid-template-columns:1fr auto 1fr;gap:8px 14px;align-items:center;margin:20px 0;font:16px/1.4 var(--sans)}
+.map .h{font-weight:700;color:var(--forest);padding:0 4px}
+.map .a,.map .b{padding:10px 14px;border-radius:10px}
+.map .a{background:var(--orange-soft);border:1px solid #F3C99B}
+.map .b{background:var(--paper);border:1px solid var(--line)}
+.map .ar{color:var(--muted);text-align:center}
+
+/* facts + network */
+.facts{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 6px;padding:0;list-style:none;font:15px var(--sans)}
+.facts li{background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:6px 14px}
+.facts b{color:var(--forest)}
+.net{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;margin:18px 0;font-family:var(--sans)}
+.net .box{flex:1 1 130px;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-align:center}
+.net .box b{display:block;color:var(--forest);font-size:16px}
+.net .box span{font-size:14px;color:var(--muted)}
+.net .arrow{align-self:center;color:var(--orange-deep);font-size:22px}
+.net .box.out{border-color:var(--orange-line);background:var(--orange-soft)}
+
+/* cards (variants) */
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0 8px;font-family:var(--sans)}
+.card{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--paper)}
+.card h4{margin:0 0 4px;font:700 16px var(--sans);color:var(--forest)}
+.card p{margin:0;font-size:15px;line-height:1.5}
+.card.hot{border-color:var(--orange-line);background:var(--orange-soft)}
+
+/* formulas */
+.fblock{background:var(--paper);border:1px solid var(--line);border-radius:14px;margin:22px 0;overflow:hidden}
+.formula{padding:18px 16px 8px;overflow-x:auto;text-align:center}
+.formula math{font-size:1.45em;margin:4px 0}
+.formula [data-term]{border-radius:3px;transition:background .15s,color .15s}
+.formula .hl{color:var(--orange-deep);background:var(--orange-soft)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding:10px 14px 16px}
+.chip{display:inline-flex;align-items:center;gap:8px;text-align:left;font:14px/1.3 var(--sans);color:var(--ink);background:var(--bg);
+  border:1px solid var(--line);border-radius:999px;padding:6px 14px 6px 8px;cursor:pointer}
+.chip .sym{min-width:36px;height:30px;display:inline-flex;align-items:center;justify-content:center;background:var(--mint);border-radius:999px;color:var(--forest);font-size:1.25em;padding:0 6px}
+.chip[aria-pressed="true"],.chip:hover{background:var(--orange-soft);border-color:var(--orange-line)}
+.chip[aria-pressed="true"] .sym{background:var(--orange);color:#1b2e22}
+
+/* widgets */
+.widget{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px;margin:26px 0}
+.widget .wt{font:700 17px var(--sans);color:var(--forest);margin:0 0 4px}
+.widget .wd{font:15px/1.5 var(--sans);color:var(--muted);margin:0 0 12px;max-width:none}
+.ctls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 22px;margin:8px 0 14px;font-family:var(--sans)}
+.ctl label{display:flex;justify-content:space-between;font-size:14px;font-weight:600;color:var(--forest)}
+.ctl output{font-variant-numeric:tabular-nums;color:var(--orange-deep);font-weight:700}
+input[type=range]{width:100%;accent-color:var(--orange-line);height:28px;margin:2px 0}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
+.btn{font:700 14px var(--sans);border-radius:8px;padding:8px 14px;cursor:pointer;border:1px solid var(--forest);background:transparent;color:var(--forest)}
+.btn:hover{background:var(--mint)}
+.btn.pri{background:var(--orange);border-color:var(--orange);color:#1b2e22}
+.btn.pri:hover{background:#F59A3C}
+.keys{display:flex;flex-wrap:wrap;gap:6px 18px;margin:0 0 10px;font:14px var(--sans)}
+.key{display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.key input{accent-color:var(--orange-line)}
+.plots{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;align-items:start}
+.plots.single{grid-template-columns:minmax(0,1fr)}
+.chart{display:block;max-width:100%;height:auto}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .axis{stroke:var(--muted);stroke-width:1.2}
+.chart .tick{fill:var(--muted);font:12px var(--sans)}
+.chart .lab{fill:var(--forest);font:600 12px var(--sans)}
+.chart .note{fill:var(--orange-deep);font:600 12px var(--sans)}
+.chart .contour{fill:none;stroke:#A9C794;stroke-width:1}
+.cap{font:13.5px/1.45 var(--sans);color:var(--muted);margin:6px 0 0;max-width:none}
+table.ro{width:100%;border-collapse:collapse;font:14px var(--sans);margin-top:12px}
+table.ro caption{text-align:left;font-weight:700;color:var(--forest);padding-bottom:4px}
+table.ro th,table.ro td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;font-variant-numeric:tabular-nums}
+table.ro th{color:var(--muted);font-weight:600}
+.hint{font:15px/1.5 var(--sans);margin:12px 0 0;padding:10px 14px;background:var(--mint);border-radius:8px;max-width:none}
+.hint b{color:var(--forest)}
+.calc{margin-top:16px;padding-top:14px;border-top:1px dashed var(--line)}
+.calc .out{font:600 16px var(--sans);color:var(--forest);margin:8px 0 0;max-width:none}
+.calc .out em{font-style:normal;color:var(--orange-deep)}
+
+/* pg hero variant */
+.hero .widget{margin:0;background:var(--paper)}
+
+/* quiz */
+fieldset.quiz{border:1px solid var(--line);background:var(--paper);border-radius:14px;padding:16px 18px 18px;margin:28px 0;min-width:0}
+.quiz legend{font:700 14px var(--sans);color:#1b2e22;background:var(--orange);border-radius:6px;padding:3px 10px}
+.quiz .q{margin:8px 0 12px;font-size:17.5px;max-width:none}
+.opts{display:grid;gap:8px}
+.opt{display:flex;gap:10px;align-items:flex-start;font:16px/1.4 var(--sans);padding:10px 14px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:var(--bg)}
+.opt:hover{border-color:var(--forest)}
+.opt input{margin-top:3px;accent-color:var(--forest)}
+.opt.right{background:#DDF1D2;border-color:var(--green)}
+.opt.wrong{background:#FFF1E2;border-color:var(--orange-line);text-decoration:line-through;text-decoration-color:var(--orange-deep)}
+.fb{font:16px/1.55 var(--sans);margin-top:12px;min-height:1px;max-width:none}
+.fb .verdict{font-weight:800}
+.fb.ok .verdict{color:var(--forest)}
+.fb.no .verdict{color:var(--orange-deep)}
+
+/* code */
+details.code{margin:16px 0;border:1px solid var(--line);border-radius:10px;background:var(--paper);overflow:hidden}
+details.code summary{cursor:pointer;font:600 15px var(--sans);color:var(--forest);padding:10px 14px}
+details.code summary:hover{background:var(--mint)}
+details.code pre{margin:0;padding:14px 16px;overflow-x:auto;background:#F1F8EC;border-top:1px solid var(--line);font:13.5px/1.55 var(--mono);color:#1f3327;tab-size:4}
+.tk-c{color:#6B7F70;font-style:italic}.tk-s{color:#9A4A00}.tk-k{color:#1C6B3A;font-weight:600}.tk-n{color:#B85A00}
+
+/* figures */
+figure.shot{margin:18px 0;background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px}
+figure.shot img{display:block;max-width:100%;height:auto;margin:0 auto;border-radius:6px;background:#fff}
+figure.shot figcaption{font:13.5px/1.45 var(--sans);color:var(--muted);margin-top:8px}
+figure.shot.failed img{display:none}
+figure.shot .fail{display:none;font:14px var(--sans);color:var(--muted);margin:0;padding:18px;text-align:center;max-width:none}
+figure.shot.failed .fail{display:block}
+
+/* comparison table */
+.tbl-wrap{overflow-x:auto;margin:20px 0;border:1px solid var(--line);border-radius:12px;background:var(--paper)}
+table.cmp{border-collapse:collapse;width:100%;min-width:560px;font:15.5px/1.4 var(--sans)}
+table.cmp th,table.cmp td{padding:11px 14px;border-bottom:1px solid var(--line);text-align:center}
+table.cmp th:first-child,table.cmp td:first-child{text-align:left}
+table.cmp thead th{background:var(--mint);color:var(--forest);font-weight:700}
+table.cmp tbody tr:hover{background:var(--orange-soft)}
+table.cmp tbody th{font-weight:700;color:var(--forest)}
+table.cmp tr:last-child td,table.cmp tr:last-child th{border-bottom:0}
+.yes{color:var(--forest);font-weight:800}
+.no{color:var(--muted)}
+
+/* spot the gap */
+.claim{margin:14px 0;padding:14px 18px;background:var(--paper);border:1px dashed var(--orange-line);border-radius:10px;font-style:italic;max-width:none}
+.reveal{margin-top:10px}
+.reveal[hidden]{display:none}
+
+/* prompts */
+.prompts{display:grid;gap:12px;margin:18px 0}
+.prompt{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:14px 16px;font-family:var(--sans)}
+.prompt h4{margin:0 0 6px;font:700 16px var(--sans);color:var(--forest)}
+.prompt p{margin:0 0 10px;font-size:15px;line-height:1.5;max-width:none}
+.prompt q{display:block;font:15px/1.5 var(--serif);font-style:italic;background:var(--bg);padding:10px 12px;border-radius:8px;margin-bottom:10px;quotes:none}
+
+/* takeaways */
+.take{display:grid;gap:10px;padding:0;list-style:none;margin:16px 0;font-family:var(--sans)}
+.take li{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:12px 16px;font-size:16px;line-height:1.5}
+.take .tag{font-weight:800;color:var(--forest);min-width:96px}
+
+footer{background:var(--forest);color:#E6F2DC;font:600 15px var(--sans);padding:28px 24px;text-align:center;margin-top:40px}
+
+@media (max-width:1079px){
+  .layout{grid-template-columns:minmax(0,1fr);gap:0;max-width:860px}
+  .topbar .menu-btn{display:inline-block}
+  .toc{display:none;position:fixed;top:52px;left:0;right:0;z-index:40;background:var(--bg);border-bottom:1px solid var(--line);padding:10px 20px 16px;max-height:calc(100vh - 52px)}
+  .toc.open{display:block}
+  .hero-in{grid-template-columns:minmax(0,1fr);gap:28px;padding-top:36px}
+}
+@media (max-width:760px){
+  body{font-size:17px}
+  .plots{grid-template-columns:minmax(0,1fr)}
+  .cards{grid-template-columns:minmax(0,1fr)}
+  .map{grid-template-columns:1fr}
+  .map .ar{display:none}
+  .map .h.r{display:none}
+  .widget{padding:14px}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+
+<div class="topbar" role="banner">
+  <a class="brand" href="#top">Neural Networks 8 post read</a>
+  <button class="menu-btn" id="menuBtn" aria-expanded="false" aria-controls="toc">Contents</button>
+  <div class="progress" id="progress" aria-hidden="true"></div>
+</div>
+
+<header class="hero" id="top">
+  <div class="hero-in">
+    <div>
+      <h1>Neural Networks 8 post read</h1>
+      <p class="sub">Optimisers: how a network finds its way down the loss hill</p>
+      <p class="lede">Training a network means searching for the weights with the lowest loss, and plain gradient descent does that slowly. Follow Aria, a NovaMart delivery rider, as her route to the hub improves with Momentum, RMSprop, Adam and learning rate decay.</p>
+    </div>
+    <div class="widget" id="pg-hero"></div>
+  </div>
+</header>
+
+<div class="layout">
+<nav class="toc" id="toc" aria-label="Contents">
+  <ol>
+    <li><a href="#story">The problem and Aria’s hill</a></li>
+    <li><a href="#vanilla">Vanilla gradient descent</a></li>
+    <li><a href="#slow">Why training is slow</a></li>
+    <li><a href="#ema">Exponential moving average</a></li>
+    <li><a href="#momentum">Momentum</a></li>
+    <li><a href="#rmsprop">RMSprop</a></li>
+    <li><a href="#adam">Adam</a></li>
+    <li><a href="#decay">Learning rate decay</a></li>
+    <li><a href="#playground">Full playground</a></li>
+    <li><a href="#summary">Key takeaways</a></li>
+    <li><a href="#further">Go further</a></li>
+  </ol>
+</nav>
+
+<main id="content" tabindex="-1">
+
+<!-- ============ STORY ============ -->
+<section class="sec" id="story" aria-labelledby="h-story">
+  <h2 id="h-story">The problem: NovaMart’s demand segments</h2>
+  <p>NovaMart is a quick-commerce grocery startup. Its delivery-ops team wants to group neighbourhoods into three demand segments — <strong>Light</strong>, <strong>Regular</strong> and <strong>Heavy</strong> — based on order frequency, basket size and delivery distance, so the right number of riders can be assigned to each zone.</p>
+  <p>A first look at the data shows the segments twisting around each other in a way no straight line can separate. The team decides a deep neural network is needed instead of a simple linear model.</p>
+
+  <h3>Aria and the hill</h3>
+  <p>Running alongside the business problem is a second, smaller story. <strong>Aria</strong>, a NovaMart delivery rider, must find the fastest route down a hilly part of the city to reach the delivery hub. Her search for the quickest way downhill is a close cousin of what a network’s optimiser does when it searches for the point of lowest loss. We will return to her ride with every new idea.</p>
+  <div class="map" role="list" aria-label="How Aria's ride maps to network training">
+    <div class="h">Aria’s ride</div><div></div><div class="h r">Network training</div>
+    <div class="a" role="listitem">The hill she rides down</div><div class="ar" aria-hidden="true">↔</div><div class="b">The loss surface <var>L</var>(<var>W</var>, <var>b</var>)</div>
+    <div class="a" role="listitem">Where she is standing</div><div class="ar" aria-hidden="true">↔</div><div class="b">The current weights <var>W</var></div>
+    <div class="a" role="listitem">The steepest way downhill from here</div><div class="ar" aria-hidden="true">↔</div><div class="b">The gradient at this step</div>
+    <div class="a" role="listitem">A noisy read of “which way is downhill”</div><div class="ar" aria-hidden="true">↔</div><div class="b">The gradient from one mini-batch of data</div>
+    <div class="a" role="listitem">The delivery hub</div><div class="ar" aria-hidden="true">↔</div><div class="b">The point of lowest loss</div>
+  </div>
+
+  <h3>The simulated data and the network</h3>
+  <p>To practise, we simulate neighbourhoods whose demand segments cannot be split by a straight line — a stand-in for NovaMart’s real order data — and prepare them for a neural network.</p>
+  <ul class="facts" aria-label="Dataset facts">
+    <li><b>1,500</b> simulated neighbourhoods</li>
+    <li><b>2</b> features: order frequency, basket size (standardised)</li>
+    <li><b>Noise</b> 0.25</li>
+    <li><b>80 / 20</b> train / test split</li>
+  </ul>
+  <div class="widget" id="moons-w">
+    <p class="wt">Why a straight line fails</p>
+    <div id="moons"></div>
+    <p class="cap">Illustrative sample drawn in your browser using the same half-moon construction as the notebook’s data (noise 0.25). It is not the notebook’s exact sample.</p>
+  </div>
+  <div class="callout note"><span class="ttl">A note on the classes</span><p>The story describes three segments, but the simulated training data has two classes, which is why the network ends in a single sigmoid unit and trains with binary cross-entropy loss.</p></div>
+  <div class="net" role="img" aria-label="Network architecture: input of 2 features, two dense layers of 16 ReLU units, one dense sigmoid output">
+    <div class="box"><b>Input</b><span>2 features</span></div><div class="arrow" aria-hidden="true">→</div>
+    <div class="box"><b>Dense 16</b><span>ReLU</span></div><div class="arrow" aria-hidden="true">→</div>
+    <div class="box"><b>Dense 16</b><span>ReLU</span></div><div class="arrow" aria-hidden="true">→</div>
+    <div class="box out"><b>Dense 1</b><span>sigmoid</span></div>
+  </div>
+  <details class="code"><summary>Show the setup code</summary><pre><code class="py">import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import make_moons
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+import tensorflow as tf
+from tensorflow.keras import Sequential
+from tensorflow.keras.layers import Dense
+
+np.random.seed(7)
+tf.random.set_seed(7)
+
+# Simulated neighbourhood demand data: two engineered features, non-linear boundary
+X, y = make_moons(n_samples=1500, noise=0.25, random_state=7)
+
+plt.figure(figsize=(5,4))
+plt.scatter(X[:,0], X[:,1], c=y, cmap="coolwarm", s=10)
+plt.title("NovaMart neighbourhoods: two demand segments")
+plt.xlabel("feature 1 (standardised order frequency)")
+plt.ylabel("feature 2 (standardised basket size)")
+plt.show()
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=7)
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+def build_model():
+    model = Sequential([
+        Dense(16, activation="relu"),
+        Dense(16, activation="relu"),
+        Dense(1, activation="sigmoid")
+    ])
+    return model</code></pre></details>
+</section>
+
+<!-- ============ VANILLA ============ -->
+<section class="sec" id="vanilla" aria-labelledby="h-vanilla">
+  <h2 id="h-vanilla">Training with vanilla mini-batch gradient descent</h2>
+  <p>Let <var>W</var> be the collection of the network’s weights, <var>b</var> its biases, and <var>L</var>(<var>W</var>, <var>b</var>) the loss — a single number telling us how wrong the network’s predictions currently are. Vanilla gradient descent updates the weights like this:</p>
+  <div class="fblock"><div class="formula"><math display="block" aria-label="W becomes W minus eta times the gradient of L with respect to W"><mrow><mrow data-term="w"><mi>W</mi></mrow><mo>←</mo><mrow data-term="w"><mi>W</mi></mrow><mo>−</mo><mrow data-term="eta"><mi>η</mi></mrow><mo>⋅</mo><mrow data-term="grad"><mfrac><mrow><mo>∂</mo><mi>L</mi></mrow><mrow><mo>∂</mo><mi>W</mi></mrow></mfrac></mrow></mrow></math></div><div class="chips" role="group" aria-label="Terms in the formula. Select one to highlight it."><button type="button" class="chip" data-term="w" aria-pressed="false"><span class="sym"><math><mrow><mi>W</mi></mrow></math></span><span>the network’s weights (Aria’s position on the hill)</span></button><button type="button" class="chip" data-term="eta" aria-pressed="false"><span class="sym"><math><mrow><mi>η</mi></mrow></math></span><span>the learning rate: how big a step to take</span></button><button type="button" class="chip" data-term="grad" aria-pressed="false"><span class="sym"><math><mrow><mfrac><mrow><mo>∂</mo><mi>L</mi></mrow><mrow><mo>∂</mo><mi>W</mi></mrow></mfrac></mrow></math></span><span>the gradient: the direction in which the loss increases fastest</span></button></div></div>
+  <p>The gradient points in the direction the loss increases fastest, so we move the opposite way to reduce it. The learning rate <var>η</var> is a small positive number that controls how large that step is.</p>
+
+  <h3>How many examples per update?</h3>
+  <p>“Mini-batch” names one of three ways to decide how much data each weight update looks at.</p>
+  <div class="cards">
+    <div class="card"><h4>Batch</h4><p>Uses the entire dataset for every update.</p></div>
+    <div class="card"><h4>Mini-batch</h4><p>Uses a small group of examples for every update.</p></div>
+    <div class="card hot"><h4>Stochastic (SGD)</h4><p>Updates after a single example: the noisiest, but fastest to start.</p></div>
+  </div>
+  <div class="quiz-slot" data-quiz="q1"></div>
+
+  <h3>Training it on the NovaMart data</h3>
+  <details class="code"><summary>Show the Keras code</summary><pre><code class="py">model_vanilla = build_model()
+model_vanilla.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=0.05),
+                       loss="binary_crossentropy")
+
+history_vanilla = model_vanilla.fit(X_train, y_train, validation_data=(X_test, y_test),
+                                     epochs=15, batch_size=64, verbose=0)
+
+plt.plot(history_vanilla.history["loss"], label="train")
+plt.plot(history_vanilla.history["val_loss"], label="validation")
+plt.title("Vanilla Gradient Descent: 15 epochs")
+plt.xlabel("epoch"); plt.ylabel("loss"); plt.legend(); plt.show()</code></pre></details>
+  <figure class="shot">
+    <img data-fallback loading="lazy" width="500" src="https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/243/395/original/img6.png?1790677923" alt="Line chart of training and validation loss over 15 epochs for vanilla gradient descent.">
+    <p class="fail">The notebook’s loss chart could not be loaded (it needs an internet connection).</p>
+    <figcaption>Notebook result: vanilla gradient descent, 15 epochs, learning rate 0.05.</figcaption>
+  </figure>
+  <div class="callout observe"><span class="ttl">Observe</span><p>After 15 epochs the loss is still high and barely moving. Left to train for a few hundred epochs it does eventually settle — but NovaMart’s real order data has millions of rows, and waiting hundreds of epochs is not realistic before every rider-allocation decision.</p></div>
+</section>
+
+<!-- ============ SLOW ============ -->
+<section class="sec" id="slow" aria-labelledby="h-slow">
+  <h2 id="h-slow">Why is training so slow?</h2>
+  <p>Picture Aria again. The loss surface is the hill she is riding down, her position is the current weights <var>W</var>, and each gradient calculation tells her the steepest direction downhill <strong>from where she is standing right now</strong> — not the best overall route to the hub.</p>
+  <p>If the hill is a long, narrow valley — steep on the sides, gently sloping along the floor — her bike keeps swerving from one wall to the other instead of rolling smoothly along the floor toward the hub. Each mini-batch also gives the network a slightly different, noisy read of “which way is downhill”, so the weights zig-zag the way Aria’s bike does. That zig-zagging is why so many epochs are needed.</p>
+  <div class="widget" id="pg-slow"></div>
+</section>
+
+<!-- ============ EMA ============ -->
+<section class="sec" id="ema" aria-labelledby="h-ema">
+  <h2 id="h-ema">Smoothing the ride: exponential moving average</h2>
+  <p>Instead of reacting fully to every noisy reading, Aria could <strong>blend</strong> her current direction with the direction she was already travelling in. That blending idea is an Exponential Moving Average (EMA):</p>
+  <div class="fblock"><div class="formula"><math display="block" aria-label="V t equals beta times V t minus 1 plus one minus beta times g t"><mrow><mrow data-term="vt"><msub><mi>V</mi><mi>t</mi></msub></mrow><mo>=</mo><mrow data-term="beta"><mi>β</mi></mrow><mo>⋅</mo><mrow data-term="vprev"><msub><mi>V</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow><mo>+</mo><mo>(</mo><mn>1</mn><mo>−</mo><mrow data-term="beta"><mi>β</mi></mrow><mo>)</mo><mo>⋅</mo><mrow data-term="g"><msub><mi>g</mi><mi>t</mi></msub></mrow></mrow></math></div><div class="chips" role="group" aria-label="Terms in the formula. Select one to highlight it."><button type="button" class="chip" data-term="vt" aria-pressed="false"><span class="sym"><math><mrow><msub><mi>V</mi><mi>t</mi></msub></mrow></math></span><span>the smoothed direction after step t</span></button><button type="button" class="chip" data-term="vprev" aria-pressed="false"><span class="sym"><math><mrow><msub><mi>V</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow></math></span><span>the smoothed direction from the previous step</span></button><button type="button" class="chip" data-term="g" aria-pressed="false"><span class="sym"><math><mrow><msub><mi>g</mi><mi>t</mi></msub></mrow></math></span><span>the raw, noisy gradient computed at step t</span></button><button type="button" class="chip" data-term="beta" aria-pressed="false"><span class="sym"><math><mrow><mi>β</mi></mrow></math></span><span>a number between 0 and 1: how much weight the past direction gets</span></button></div></div>
+  <p>Here <var>t</var> is the current step. A <var>β</var> close to 1 means Aria trusts her established direction more and reacts less to each bump in the road.</p>
+  <div class="widget" id="ema-w">
+    <p class="wt">EMA explorer</p>
+    <p class="wd">The dots are made-up noisy gradient readings, generated for this demo (not NovaMart data). The line is their EMA, starting from <var>V</var><sub>0</sub> = 0.</p>
+    <div class="ctls"><div class="ctl"><label for="ema-b">β <output id="ema-b-o">0.90</output></label><input id="ema-b" type="range" min="0" max="0.99" step="0.01" value="0.9"></div></div>
+    <div class="keys" aria-hidden="true">
+      <span class="key"><svg width="30" height="14" viewBox="0 0 30 14"><circle cx="15" cy="7" r="3.5" style="fill:var(--c-vanilla)"/></svg>Raw gradient <var>g<sub>t</sub></var></span>
+      <span class="key"><svg width="30" height="14" viewBox="0 0 30 14"><line x1="1" x2="29" y1="7" y2="7" style="stroke:var(--c-momentum)" stroke-width="3"/></svg>Smoothed <var>V<sub>t</sub></var></span>
+    </div>
+    <div id="ema-chart"></div>
+    <p class="hint"><b>Try this:</b> raise β and the line gets smoother, but it reacts more slowly and starts low, because <var>V</var><sub>0</sub> = 0. Lower β toward 0 and it follows every reading.</p>
+    <div class="calc">
+      <p class="wt">One step, by hand</p>
+      <div class="ctls">
+        <div class="ctl"><label for="c-b">β <output id="c-b-o">0.90</output></label><input id="c-b" type="range" min="0" max="1" step="0.01" value="0.9"></div>
+        <div class="ctl"><label for="c-v">Previous <var>V</var><sub>t−1</sub> <output id="c-v-o">0.20</output></label><input id="c-v" type="range" min="-1" max="1" step="0.05" value="0.2"></div>
+        <div class="ctl"><label for="c-g">New reading <var>g</var><sub>t</sub> <output id="c-g-o">1.00</output></label><input id="c-g" type="range" min="-1" max="1" step="0.05" value="1"></div>
+      </div>
+      <p class="out" id="c-out" aria-live="polite"></p>
+    </div>
+  </div>
+  <div class="quiz-slot" data-quiz="q2"></div>
+</section>
+
+<!-- ============ MOMENTUM ============ -->
+<section class="sec" id="momentum" aria-labelledby="h-mom">
+  <h2 id="h-mom">Gradient descent with momentum</h2>
+  <p>Momentum applies the EMA idea directly to the gradient, then uses the smoothed value to update the weights:</p>
+  <div class="fblock"><div class="formula"><math display="block" aria-label="V dW equals beta times V dW plus one minus beta times the gradient"><mrow><mrow data-term="v"><msub><mi>V</mi><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow><mo>=</mo><mrow data-term="beta"><mi>β</mi></mrow><mo>⋅</mo><mrow data-term="v"><msub><mi>V</mi><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow><mo>+</mo><mo>(</mo><mn>1</mn><mo>−</mo><mrow data-term="beta"><mi>β</mi></mrow><mo>)</mo><mo>⋅</mo><mrow data-term="grad"><mfrac><mrow><mo>∂</mo><mi>L</mi></mrow><mrow><mo>∂</mo><mi>W</mi></mrow></mfrac></mrow></mrow></math><math display="block" aria-label="W becomes W minus eta times V dW"><mrow><mi>W</mi><mo>←</mo><mi>W</mi><mo>−</mo><mrow data-term="eta"><mi>η</mi></mrow><mo>⋅</mo><mrow data-term="v"><msub><mi>V</mi><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow></mrow></math></div><div class="chips" role="group" aria-label="Terms in the formula. Select one to highlight it."><button type="button" class="chip" data-term="v" aria-pressed="false"><span class="sym"><math><mrow><msub><mi>V</mi><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow></math></span><span>the running, smoothed gradient (Aria’s blended sense of “downhill”)</span></button><button type="button" class="chip" data-term="beta" aria-pressed="false"><span class="sym"><math><mrow><mi>β</mi></mrow></math></span><span>how much of the previous direction carries over</span></button><button type="button" class="chip" data-term="grad" aria-pressed="false"><span class="sym"><math><mrow><mfrac><mrow><mo>∂</mo><mi>L</mi></mrow><mrow><mo>∂</mo><mi>W</mi></mrow></mfrac></mrow></math></span><span>the raw gradient at this step</span></button><button type="button" class="chip" data-term="eta" aria-pressed="false"><span class="sym"><math><mrow><mi>η</mi></mrow></math></span><span>the learning rate, as before</span></button></div></div>
+  <div class="callout aria"><span class="ttl">Aria’s version</span><p>A bicycle picks up speed rolling downhill and doesn’t change direction over every small bump. Momentum lets the optimiser build up speed along the valley floor while cancelling out the side-to-side swerving.</p></div>
+  <div class="widget" id="pg-mom"></div>
+  <details class="code"><summary>Show the Keras code</summary><pre><code class="py">model_momentum = build_model()
+model_momentum.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=0.05, momentum=0.9),
+                        loss="binary_crossentropy")
+
+history_momentum = model_momentum.fit(X_train, y_train, validation_data=(X_test, y_test),
+                                       epochs=15, batch_size=64, verbose=0)
+
+plt.plot(history_vanilla.history["loss"], label="vanilla GD")
+plt.plot(history_momentum.history["loss"], label="GD + momentum")
+plt.title("Vanilla GD vs Momentum: 15 epochs")
+plt.xlabel("epoch"); plt.ylabel("loss"); plt.legend(); plt.show()</code></pre></details>
+  <figure class="shot">
+    <img data-fallback loading="lazy" width="500" src="https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/243/397/original/img7.png?1790678041" alt="Line chart comparing loss over 15 epochs for vanilla gradient descent and gradient descent with momentum.">
+    <p class="fail">The notebook’s loss chart could not be loaded (it needs an internet connection).</p>
+    <figcaption>Notebook result: vanilla gradient descent vs momentum, same 15 epochs and learning rate.</figcaption>
+  </figure>
+  <div class="callout observe"><span class="ttl">Observe</span><p>With the same 15 epochs and the same learning rate, momentum reaches a noticeably lower loss than vanilla gradient descent. Aria’s bike is now rolling smoothly down the valley floor instead of bouncing between the walls.</p></div>
+  <div class="quiz-slot" data-quiz="q3"></div>
+</section>
+
+<!-- ============ RMSPROP ============ -->
+<section class="sec" id="rmsprop" aria-labelledby="h-rms">
+  <h2 id="h-rms">RMSprop: smoothing the size of gradients</h2>
+  <p>Momentum speeds Aria up, but on a very steep-sided valley she can still overshoot and wobble. RMSprop takes a different approach: instead of smoothing the <strong>direction</strong>, it smooths the <strong>size</strong> of past gradients and uses that to shrink the step in directions that have been consistently steep.</p>
+  <div class="fblock"><div class="formula"><math display="block" aria-label="S dW equals beta 2 times S dW plus one minus beta 2 times the squared gradient"><mrow><mrow data-term="s"><msub><mi>S</mi><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow><mo>=</mo><mrow data-term="beta2"><msub><mi>β</mi><mn>2</mn></msub></mrow><mo>⋅</mo><mrow data-term="s"><msub><mi>S</mi><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow><mo>+</mo><mo>(</mo><mn>1</mn><mo>−</mo><mrow data-term="beta2"><msub><mi>β</mi><mn>2</mn></msub></mrow><mo>)</mo><mo>⋅</mo><mrow data-term="grad"><msup><mrow><mo>(</mo><mfrac><mrow><mo>∂</mo><mi>L</mi></mrow><mrow><mo>∂</mo><mi>W</mi></mrow></mfrac><mo>)</mo></mrow><mn>2</mn></msup></mrow></mrow></math><math display="block" aria-label="W becomes W minus eta times the gradient divided by the square root of S dW plus epsilon"><mrow><mi>W</mi><mo>←</mo><mi>W</mi><mo>−</mo><mrow data-term="eta"><mi>η</mi></mrow><mo>⋅</mo><mfrac><mrow data-term="grad"><mrow><mo>∂</mo><mi>L</mi><mo>/</mo><mo>∂</mo><mi>W</mi></mrow></mrow><mrow><mrow data-term="s"><msqrt><msub><mi>S</mi><mrow><mi>d</mi><mi>W</mi></mrow></msub></msqrt></mrow><mo>+</mo><mrow data-term="eps"><mi>ε</mi></mrow></mrow></mfrac></mrow></math></div><div class="chips" role="group" aria-label="Terms in the formula. Select one to highlight it."><button type="button" class="chip" data-term="s" aria-pressed="false"><span class="sym"><math><mrow><msub><mi>S</mi><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow></math></span><span>the running average of the squared gradient: how large and noisy recent gradients have been</span></button><button type="button" class="chip" data-term="beta2" aria-pressed="false"><span class="sym"><math><mrow><msub><mi>β</mi><mn>2</mn></msub></mrow></math></span><span>the smoothing factor for that average</span></button><button type="button" class="chip" data-term="eps" aria-pressed="false"><span class="sym"><math><mrow><mi>ε</mi></mrow></math></span><span>a tiny constant, added only to avoid dividing by zero</span></button><button type="button" class="chip" data-term="eta" aria-pressed="false"><span class="sym"><math><mrow><mi>η</mi></mrow></math></span><span>the learning rate</span></button></div></div>
+  <p>Dividing by √<var>S</var> automatically takes smaller steps in directions that have been consistently steep and larger steps in directions that have been consistently gentle.</p>
+  <div class="callout aria"><span class="ttl">Aria’s version</span><p>She brakes automatically on the steep cross-slope and pedals harder along the gentle straight.</p></div>
+  <div class="widget" id="pg-rms"></div>
+  <div class="quiz-slot" data-quiz="q4"></div>
+</section>
+
+<!-- ============ ADAM ============ -->
+<section class="sec" id="adam" aria-labelledby="h-adam">
+  <h2 id="h-adam">Adam: Momentum and RMSprop together</h2>
+  <p>Adam (Adaptive Moment Estimation) combines Momentum’s smoothed direction <var>V</var><sub>dW</sub> with RMSprop’s smoothed step-size control <var>S</var><sub>dW</sub>. Because both start at zero, they are biased toward zero in the earliest steps, so Adam corrects for this before using them:</p>
+  <div class="fblock"><div class="formula"><math display="block" aria-label="V hat equals V dW divided by one minus beta 1 to the power t"><mrow><mrow data-term="vh"><msub><mover accent="true"><mi>V</mi><mo>^</mo></mover><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow><mo>=</mo><mfrac><mrow data-term="v"><msub><mi>V</mi><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow><mrow><mn>1</mn><mo>−</mo><mrow data-term="beta1"><msup><msub><mi>β</mi><mn>1</mn></msub><mi>t</mi></msup></mrow></mrow></mfrac></mrow></math><math display="block" aria-label="S hat equals S dW divided by one minus beta 2 to the power t"><mrow><mrow data-term="sh"><msub><mover accent="true"><mi>S</mi><mo>^</mo></mover><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow><mo>=</mo><mfrac><mrow data-term="s"><msub><mi>S</mi><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow><mrow><mn>1</mn><mo>−</mo><mrow data-term="beta2"><msup><msub><mi>β</mi><mn>2</mn></msub><mi>t</mi></msup></mrow></mrow></mfrac></mrow></math><math display="block" aria-label="W becomes W minus eta times V hat divided by the square root of S hat plus epsilon"><mrow><mi>W</mi><mo>←</mo><mi>W</mi><mo>−</mo><mrow data-term="eta"><mi>η</mi></mrow><mo>⋅</mo><mfrac><mrow data-term="vh"><msub><mover accent="true"><mi>V</mi><mo>^</mo></mover><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow><mrow><msqrt><mrow data-term="sh"><msub><mover accent="true"><mi>S</mi><mo>^</mo></mover><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow></msqrt><mo>+</mo><mi>ε</mi></mrow></mfrac></mrow></math></div><div class="chips" role="group" aria-label="Terms in the formula. Select one to highlight it."><button type="button" class="chip" data-term="vh" aria-pressed="false"><span class="sym"><math><mrow><msub><mover accent="true"><mi>V</mi><mo>^</mo></mover><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow></math></span><span>the bias-corrected momentum term (smoothed direction)</span></button><button type="button" class="chip" data-term="sh" aria-pressed="false"><span class="sym"><math><mrow><msub><mover accent="true"><mi>S</mi><mo>^</mo></mover><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow></math></span><span>the bias-corrected RMSprop term (smoothed squared gradient)</span></button><button type="button" class="chip" data-term="beta1" aria-pressed="false"><span class="sym"><math><mrow><msub><mi>β</mi><mn>1</mn></msub></mrow></math></span><span>the momentum smoothing factor</span></button><button type="button" class="chip" data-term="beta2" aria-pressed="false"><span class="sym"><math><mrow><msub><mi>β</mi><mn>2</mn></msub></mrow></math></span><span>the RMSprop smoothing factor</span></button><button type="button" class="chip" data-term="t" aria-pressed="false"><span class="sym"><math><mrow><mi>t</mi></mrow></math></span><span>the current step number</span></button><button type="button" class="chip" data-term="eta" aria-pressed="false"><span class="sym"><math><mrow><mi>η</mi></mrow></math></span><span>the learning rate</span></button></div></div>
+  <div class="callout aria"><span class="ttl">Aria’s version</span><p>She gets both benefits at once: a smoothed sense of direction, and automatic braking on the steep parts of the hill.</p></div>
+
+  <h3>Why the bias correction?</h3>
+  <p>An EMA that starts at zero underestimates the true value early on. Dividing by 1 − β<sup><var>t</var></sup> lifts it back up, and the correction fades as <var>t</var> grows.</p>
+  <div class="widget" id="bias-w">
+    <p class="wt">Bias correction, step by step</p>
+    <p class="wd">Illustration: a gradient that stays at exactly 1, so the smoothed value should be 1 from the first step.</p>
+    <div class="ctls"><div class="ctl"><label for="bias-b">β₁ <output id="bias-b-o">0.90</output></label><input id="bias-b" type="range" min="0.5" max="0.99" step="0.01" value="0.9"></div></div>
+    <div class="keys" aria-hidden="true">
+      <span class="key"><svg width="30" height="14" viewBox="0 0 30 14"><line x1="1" x2="29" y1="7" y2="7" style="stroke:var(--c-rms)" stroke-width="2.4" stroke-dasharray="6 4"/><circle cx="15" cy="7" r="3.5" style="fill:var(--c-rms)"/></svg>Uncorrected <var>V<sub>t</sub></var></span>
+      <span class="key"><svg width="30" height="14" viewBox="0 0 30 14"><line x1="1" x2="29" y1="7" y2="7" style="stroke:var(--c-momentum)" stroke-width="2.4"/><rect x="11.5" y="3.5" width="7" height="7" style="fill:var(--c-momentum)"/></svg>Corrected <var>V̂<sub>t</sub></var></span>
+    </div>
+    <div id="bias-chart"></div>
+    <p class="hint" id="bias-out" aria-live="polite"></p>
+  </div>
+
+  <h3>What each optimiser adds</h3>
+  <div class="tbl-wrap">
+    <table class="cmp">
+      <caption class="sr">Which ingredients each optimiser uses</caption>
+      <thead><tr><th scope="col">Optimiser</th><th scope="col">Smooths direction</th><th scope="col">Scales step by gradient size</th><th scope="col">Bias correction</th><th scope="col">Shrinks η over time</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Vanilla GD</th><td class="no">—<span class="sr">no</span></td><td class="no">—<span class="sr">no</span></td><td class="no">—<span class="sr">no</span></td><td class="no">—<span class="sr">no</span></td></tr>
+        <tr><th scope="row">Momentum</th><td class="yes">✓<span class="sr">yes</span></td><td class="no">—<span class="sr">no</span></td><td class="no">—<span class="sr">no</span></td><td class="no">—<span class="sr">no</span></td></tr>
+        <tr><th scope="row">RMSprop</th><td class="no">—<span class="sr">no</span></td><td class="yes">✓<span class="sr">yes</span></td><td class="no">—<span class="sr">no</span></td><td class="no">—<span class="sr">no</span></td></tr>
+        <tr><th scope="row">Adam</th><td class="yes">✓<span class="sr">yes</span></td><td class="yes">✓<span class="sr">yes</span></td><td class="yes">✓<span class="sr">yes</span></td><td class="no">—<span class="sr">no</span></td></tr>
+        <tr><th scope="row">Adam + LR decay</th><td class="yes">✓<span class="sr">yes</span></td><td class="yes">✓<span class="sr">yes</span></td><td class="yes">✓<span class="sr">yes</span></td><td class="yes">✓<span class="sr">yes</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="widget" id="pg-adam"></div>
+
+  <details class="code"><summary>Show the Keras code</summary><pre><code class="py">model_adam = build_model()
+model_adam.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.01, beta_1=0.9, beta_2=0.999),
+                    loss="binary_crossentropy")
+
+history_adam = model_adam.fit(X_train, y_train, validation_data=(X_test, y_test),
+                               epochs=15, batch_size=64, verbose=0)
+
+plt.plot(history_vanilla.history["loss"], label="vanilla GD")
+plt.plot(history_momentum.history["loss"], label="momentum")
+plt.plot(history_adam.history["loss"], label="adam")
+plt.title("Vanilla GD vs Momentum vs Adam: 15 epochs")
+plt.xlabel("epoch"); plt.ylabel("loss"); plt.legend(); plt.show()</code></pre></details>
+  <figure class="shot">
+    <img data-fallback loading="lazy" width="600" src="https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/243/401/original/img9.png?1790678367" alt="Line chart comparing loss over 15 epochs for vanilla gradient descent, momentum and Adam.">
+    <p class="fail">The notebook’s loss chart could not be loaded (it needs an internet connection).</p>
+    <figcaption>Notebook result: vanilla GD, momentum and Adam over 15 epochs. Adam used learning rate 0.01, β₁ = 0.9, β₂ = 0.999.</figcaption>
+  </figure>
+
+  <h3>Spot the gap in an AI’s explanation</h3>
+  <p>An AI assistant, asked to explain Adam in one line, wrote this:</p>
+  <p class="claim">“Adam is the best optimiser because it removes the need to choose a learning rate at all — it figures out the entire step size automatically.”</p>
+  <p>It sounds confident, but it is not quite right. Check it against the update rule and find what <var>η</var> still does there.</p>
+  <button class="btn pri" id="gap-btn" aria-expanded="false" aria-controls="gap-ans">Reveal the gap</button>
+  <div class="callout note reveal" id="gap-ans" hidden>
+    <span class="ttl">What the update rule says</span>
+    <p>In <var>W</var> ← <var>W</var> − <var>η</var> · <var>V̂</var> / (√<var>Ŝ</var> + <var>ε</var>), the learning rate <var>η</var> still multiplies the whole step, so it still has to be chosen (the Keras run above sets 0.01). Adam adapts direction and relative step size using its two running averages; it does not remove <var>η</var>. “Best” is also a claim the lecture does not make.</p>
+    <p><strong>A more accurate one-liner:</strong> Adam smooths each weight’s direction and scales its step by recent gradient size, but the learning rate <var>η</var> still sets the overall step scale.</p>
+  </div>
+  <p>Treat any AI-generated technical explanation as a first draft to verify against the actual formula, not a final answer.</p>
+</section>
+
+<!-- ============ DECAY ============ -->
+<section class="sec" id="decay" aria-labelledby="h-decay">
+  <h2 id="h-decay">Learning rate decay</h2>
+  <p>Even with Adam, a fixed learning rate can be too large to settle precisely once training is close to the minimum. Aria is nearly at the hub, but her steps are still large enough to overshoot it. Learning rate decay shrinks <var>η</var> gradually as training progresses:</p>
+  <div class="fblock"><div class="formula"><math display="block" aria-label="eta at a given epoch equals eta zero divided by one plus r zero times epoch"><mrow><mrow data-term="etae"><msub><mi>η</mi><mi>epoch</mi></msub></mrow><mo>=</mo><mfrac><mrow data-term="eta0"><msub><mi>η</mi><mn>0</mn></msub></mrow><mrow><mn>1</mn><mo>+</mo><mrow data-term="r0"><msub><mi>r</mi><mn>0</mn></msub></mrow><mo>⋅</mo><mrow data-term="ep"><mi>epoch</mi></mrow></mrow></mfrac></mrow></math></div><div class="chips" role="group" aria-label="Terms in the formula. Select one to highlight it."><button type="button" class="chip" data-term="eta0" aria-pressed="false"><span class="sym"><math><mrow><msub><mi>η</mi><mn>0</mn></msub></mrow></math></span><span>the initial learning rate</span></button><button type="button" class="chip" data-term="ep" aria-pressed="false"><span class="sym"><math><mrow><mi>epoch</mi></mrow></math></span><span>the current epoch number</span></button><button type="button" class="chip" data-term="r0" aria-pressed="false"><span class="sym"><math><mrow><msub><mi>r</mi><mn>0</mn></msub></mrow></math></span><span>the decay rate: how quickly η shrinks</span></button><button type="button" class="chip" data-term="etae" aria-pressed="false"><span class="sym"><math><mrow><msub><mi>η</mi><mi>epoch</mi></msub></mrow></math></span><span>the resulting, smaller learning rate used at that epoch</span></button></div></div>
+  <div class="widget" id="decay-w">
+    <p class="wt">Decay curve</p>
+    <div class="ctls">
+      <div class="ctl"><label for="d-e0">Initial η₀ <output id="d-e0-o">0.010</output></label><input id="d-e0" type="range" min="0.001" max="0.05" step="0.001" value="0.01"></div>
+      <div class="ctl"><label for="d-r">Decay rate r₀ <output id="d-r-o">0.05</output></label><input id="d-r" type="range" min="0" max="0.5" step="0.01" value="0.05"></div>
+      <div class="ctl"><label for="d-ep">Epoch <output id="d-ep-o">15</output></label><input id="d-ep" type="range" min="0" max="50" step="1" value="15"></div>
+    </div>
+    <div class="keys" aria-hidden="true">
+      <span class="key"><svg width="30" height="14" viewBox="0 0 30 14"><line x1="1" x2="29" y1="7" y2="7" style="stroke:var(--c-rms)" stroke-width="2.4" stroke-dasharray="6 4"/></svg>Fixed η₀</span>
+      <span class="key"><svg width="30" height="14" viewBox="0 0 30 14"><line x1="1" x2="29" y1="7" y2="7" style="stroke:var(--c-momentum)" stroke-width="3"/></svg>Decayed η</span>
+    </div>
+    <div id="decay-chart"></div>
+    <p class="calc out" id="decay-out" aria-live="polite" style="border:0;padding:0"></p>
+    <p class="hint">The notebook run used η₀ = 0.01, <var>r</var><sub>0</sub> = 0.05 and 15 epochs, which are this widget’s starting values.</p>
+  </div>
+  <details class="code"><summary>Show the PyTorch code</summary><pre><code class="py">import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import TensorDataset, DataLoader
+# matplotlib.pyplot and numpy are already imported in previous cells and are available.
+
+# 1. PyTorch Model Definition
+class NovaMartModel(nn.Module):
+    def __init__(self, input_features):
+        super(NovaMartModel, self).__init__()
+        self.layer1 = nn.Linear(input_features, 16)
+        self.relu1 = nn.ReLU()
+        self.layer2 = nn.Linear(16, 16)
+        self.relu2 = nn.ReLU()
+        self.output_layer = nn.Linear(16, 1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        x = self.relu1(self.layer1(x))
+        x = self.relu2(self.layer2(x))
+        x = self.sigmoid(self.output_layer(x))
+        return x
+
+# 2. Data Preparation for PyTorch
+# X_train, y_train, X_test, y_test are numpy arrays from previous cells.
+X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+y_train_tensor = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1) # unsqueeze for BCELoss
+X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
+y_test_tensor = torch.tensor(y_test, dtype=torch.float32).unsqueeze(1)
+
+batch_size = 64
+train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
+test_dataset = TensorDataset(X_test_tensor, y_test_tensor)
+
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+# 3. PyTorch Model Initialization and Training Setup
+input_features = X_train.shape[1] # Get input dimensions from the prepared data
+model_adam_decay_torch = NovaMartModel(input_features)
+
+initial_lr = 0.01
+optimizer = optim.Adam(model_adam_decay_torch.parameters(), lr=initial_lr, betas=(0.9, 0.999))
+criterion = nn.BCELoss() # Binary Cross Entropy Loss
+
+# 4. Learning Rate Scheduler for PyTorch
+decay_rate_r0 = 0.05
+def pytorch_lr_lambda(epoch):
+    # The original formula is lr_epoch = initial_lr / (1 + r0 * epoch)
+    # For LambdaLR, this function returns a multiplicative factor for the learning rate.
+    # So, the factor is 1 / (1 + r0 * epoch)
+    return 1.0 / (1.0 + decay_rate_r0 * epoch)
+
+lr_scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=pytorch_lr_lambda)
+
+# 5. Training Loop
+epochs = 15
+history_decay_torch_loss = []
+history_decay_torch_val_loss = []
+
+for epoch in range(epochs):
+    # Training phase
+    model_adam_decay_torch.train()
+    running_loss = 0.0
+    for inputs, labels in train_loader:
+        optimizer.zero_grad()
+        outputs = model_adam_decay_torch(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        running_loss += loss.item() * inputs.size(0)
+
+    epoch_train_loss = running_loss / len(train_dataset)
+    history_decay_torch_loss.append(epoch_train_loss)
+
+    # Validation phase (optional, but good for tracking)
+    model_adam_decay_torch.eval()
+    val_loss = 0.0
+    with torch.no_grad():
+        for inputs, labels in test_loader:
+            outputs = model_adam_decay_torch(inputs)
+            loss = criterion(outputs, labels)
+            val_loss += loss.item() * inputs.size(0)
+
+    epoch_val_loss = val_loss / len(test_dataset)
+    history_decay_torch_val_loss.append(epoch_val_loss)
+
+    # Update learning rate after each epoch
+    lr_scheduler.step()
+
+# 6. Plotting Results
+plt.plot(history_adam.history["loss"], label="adam (TF)") # Use existing TF history for comparison
+plt.plot(history_decay_torch_loss, label="adam + LR decay (PyTorch)")
+plt.title("Adam vs Adam with Learning Rate Decay (PyTorch)")
+plt.xlabel("epoch"); plt.ylabel("loss"); plt.legend(); plt.show()</code></pre></details>
+  <figure class="shot">
+    <img data-fallback loading="lazy" width="600" src="https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/243/402/original/img10.png?1790678442" alt="Line chart comparing loss over 15 epochs for Adam in TensorFlow and Adam with learning rate decay in PyTorch.">
+    <p class="fail">The notebook’s loss chart could not be loaded (it needs an internet connection).</p>
+    <figcaption>Notebook result: Adam (Keras run) vs Adam with learning rate decay (PyTorch run), 15 epochs.</figcaption>
+  </figure>
+  <div class="quiz-slot" data-quiz="q5"></div>
+</section>
+
+<!-- ============ PLAYGROUND ============ -->
+<section class="sec" id="playground" aria-labelledby="h-play">
+  <h2 id="h-play">Playground: all four optimisers on one hill</h2>
+  <p>This is Aria’s hill: a narrow valley with the loss <var>L</var> = 0.05 <var>w</var><sub>1</sub>² + 5 <var>w</var><sub>2</sub>², gentle along <var>w</var><sub>1</sub> and steep along <var>w</var><sub>2</sub>. Every optimiser starts from the same point (4, 4) and aims for the hub at (0, 0). Change the sliders and switch routes on or off to see how each path responds.</p>
+  <div class="widget" id="pg-full"></div>
+  <details class="code"><summary>Show the reference implementation (Python)</summary><pre><code class="py">import numpy as np
+
+# A narrow valley-shaped loss surface: steep in one direction, gentle in the other
+def loss_surface(w1, w2):
+    return 0.05 * w1**2 + 5 * w2**2
+
+def grad_surface(w1, w2):
+    return np.array([0.10 * w1, 10 * w2])
+
+def run_optimiser(kind, lr, beta1, beta2, steps=40, start=np.array([4.0, 4.0])):
+    w = start.copy()
+    v = np.zeros(2)
+    s = np.zeros(2)
+    eps = 1e-8
+    path = [w.copy()]
+    for t in range(1, steps + 1):
+        g = grad_surface(*w)
+        if kind == "vanilla":
+            w = w - lr * g
+        elif kind == "momentum":
+            v = beta1 * v + (1 - beta1) * g
+            w = w - lr * v
+        elif kind == "rmsprop":
+            s = beta2 * s + (1 - beta2) * (g ** 2)
+            w = w - lr * g / (np.sqrt(s) + eps)
+        elif kind == "adam":
+            v = beta1 * v + (1 - beta1) * g
+            s = beta2 * s + (1 - beta2) * (g ** 2)
+            v_hat = v / (1 - beta1 ** t)
+            s_hat = s / (1 - beta2 ** t)
+            w = w - lr * v_hat / (np.sqrt(s_hat) + eps)
+        path.append(w.copy())
+    return np.array(path)</code></pre></details>
+  <p>For an even richer view, try the <a href="https://shrijankumar1-maker.github.io/Optimiser-visualiser/" target="_blank" rel="noopener">extended optimiser visualiser</a> (opens in a new tab).</p>
+</section>
+
+<!-- ============ SUMMARY ============ -->
+<section class="sec" id="summary" aria-labelledby="h-sum">
+  <h2 id="h-sum">Key takeaways</h2>
+  <ul class="take">
+    <li><span class="tag">Vanilla GD</span><span>Slow and noisy, because each step reacts fully to a single, noisy gradient reading.</span></li>
+    <li><span class="tag">EMA</span><span>Smooths a noisy sequence by blending each new reading with the running average.</span></li>
+    <li><span class="tag">Momentum</span><span>Applies that smoothing to the gradient direction, speeding up convergence along gentle slopes.</span></li>
+    <li><span class="tag">RMSprop</span><span>Smooths the squared gradient and shrinks steps in steep or noisy directions.</span></li>
+    <li><span class="tag">Adam</span><span>Combines Momentum and RMSprop, with bias correction for the earliest steps.</span></li>
+    <li><span class="tag">LR decay</span><span>Shrinks the step size over time so the optimiser can settle precisely near the minimum.</span></li>
+    <li><span class="tag">Playground</span><span>All four optimisers trace different paths down the same loss surface from the same starting point.</span></li>
+  </ul>
+</section>
+
+<!-- ============ FURTHER ============ -->
+<section class="sec" id="further" aria-labelledby="h-further">
+  <h2 id="h-further">Go further with an AI assistant</h2>
+  <p>Two prompts to try next. Compare what comes back with what you read here.</p>
+  <div class="prompts">
+    <div class="prompt"><h4>Why does gradient descent zig-zag?</h4>
+      <p>Describe the shape of a loss surface, then ask for an explanation in its own words. Compare it with Aria’s story.</p>
+      <q id="pr1">A loss surface has steep sides and a flat floor. Explain, in your own words, why gradient descent zig-zags on this kind of surface.</q>
+      <button class="btn" data-copy="pr1">Copy prompt</button></div>
+    <div class="prompt"><h4>One optimiser we did not cover</h4>
+      <p>Ask how it builds on the Momentum and RMSprop ideas from this read.</p>
+      <q id="pr2">Explain the Nadam optimiser (or AdaGrad) and how it builds on the ideas of Momentum and RMSprop.</q>
+      <button class="btn" data-copy="pr2">Copy prompt</button></div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<footer>Neural Networks 8 post read</footer>
+
+<script>
+(function(){
+'use strict';
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const fit=(el,d=560)=>{const w=Math.floor(el.getBoundingClientRect().width);return w>=240?w:d;};
+const fmtN=v=>{ if(v===0)return '0'; const a=Math.abs(v); if(a<1e-4)return '<0.0001'; return a>=100?v.toFixed(0):a>=10?v.toFixed(1):v.toPrecision(3); };
+
+/* ---------- nav: progress, menu, scroll-spy ---------- */
+const prog=$('#progress'), toc=$('#toc'), menuBtn=$('#menuBtn');
+function onScroll(){const h=document.documentElement;const max=h.scrollHeight-h.clientHeight;prog.style.setProperty('--p',max>0?Math.min(1,h.scrollTop/max):0);}
+window.addEventListener('scroll',onScroll,{passive:true});onScroll();
+menuBtn.addEventListener('click',()=>{const o=toc.classList.toggle('open');menuBtn.setAttribute('aria-expanded',o);});
+$$('a',toc).forEach(a=>a.addEventListener('click',()=>{toc.classList.remove('open');menuBtn.setAttribute('aria-expanded','false');}));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&toc.classList.contains('open')){toc.classList.remove('open');menuBtn.setAttribute('aria-expanded','false');menuBtn.focus();}});
+const links=$$('a',toc), secs=links.map(a=>$(a.getAttribute('href')));
+if('IntersectionObserver' in window){
+  const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting){links.forEach(l=>l.removeAttribute('aria-current'));const l=links[secs.indexOf(e.target)];if(l)l.setAttribute('aria-current','true');}});},{rootMargin:'-15% 0px -75% 0px'});
+  secs.forEach(s=>s&&io.observe(s));
+}
+
+/* ---------- code highlighting ---------- */
+$$('code.py').forEach(c=>{
+  const esc=c.textContent.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  c.innerHTML=esc.replace(/(#.*$)|("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')|\b(import|from|as|def|class|return|for|in|if|elif|else|with|lambda|self|None|True|False)\b|\b(\d+\.?\d*(?:e-?\d+)?)\b/gm,
+    (m,cm,st,kw,nu)=>cm?`<span class="tk-c">${m}</span>`:st?`<span class="tk-s">${m}</span>`:kw?`<span class="tk-k">${m}</span>`:`<span class="tk-n">${m}</span>`);
+});
+
+/* ---------- formula term chips ---------- */
+$$('.fblock').forEach(b=>{
+  const set=(t,on)=>$$('[data-term="'+t+'"]',$('.formula',b)).forEach(e=>e.classList.toggle('hl',on));
+  $$('.chip',b).forEach(c=>{
+    const t=c.dataset.term;
+    c.addEventListener('mouseenter',()=>set(t,true));
+    c.addEventListener('mouseleave',()=>set(t,c.getAttribute('aria-pressed')==='true'));
+    c.addEventListener('focus',()=>set(t,true));
+    c.addEventListener('blur',()=>set(t,c.getAttribute('aria-pressed')==='true'));
+    c.addEventListener('click',()=>{const p=c.getAttribute('aria-pressed')!=='true';c.setAttribute('aria-pressed',p);set(t,p);});
+  });
+});
+
+/* ---------- image fallback ---------- */
+$$('img[data-fallback]').forEach(i=>{
+  const bad=()=>i.closest('figure').classList.add('failed');
+  i.addEventListener('error',bad);
+  if(i.complete&&i.naturalWidth===0&&i.src)bad();
+});
+
+/* ---------- quizzes ---------- */
+const QUIZ={
+ q1:{q:'A gradient descent optimiser looks at only one training example before each weight update. What is this variant called?',
+  o:['Batch Gradient Descent','Stochastic Gradient Descent','Mini-Batch Gradient Descent','Momentum Gradient Descent'],a:1,
+  e:'<strong>Stochastic Gradient Descent.</strong> Batch uses the entire dataset per update, mini-batch uses a small group of examples, and stochastic updates the weights after a single example at a time — the noisiest but fastest-to-start variant.'},
+ q2:{q:'Using <var>V<sub>t</sub></var> = β · <var>V<sub>t−1</sub></var> + (1 − β) · <var>g<sub>t</sub></var>, suppose <var>V</var><sub>0</sub> = 0, β = 0.8, and the gradient at step 1 is <var>g</var><sub>1</sub> = 0.5. What is <var>V</var><sub>1</sub>?',
+  o:['0.10','0.40','0.50','0.90'],a:0,
+  e:'<strong>0.10.</strong> <var>V</var><sub>1</sub> = 0.8 × 0 + (1 − 0.8) × 0.5 = 0.2 × 0.5 = 0.10.'},
+ q3:{q:'In the bicycle analogy, what does the momentum term β most closely represent?',
+  o:['The steepness of the hill at Aria’s current position','How much of Aria’s previous direction carries over into her next move','The total distance to the hub','The number of gears on Aria’s bike'],a:1,
+  e:'<strong>How much of Aria’s previous direction carries over.</strong> β weights the previous smoothed direction <var>V<sub>t−1</sub></var> in the EMA formula. A higher β retains more of the past direction, just as a rolling bicycle keeps the momentum of the way it was already moving.'},
+ q4:{q:'For one weight, recent gradients have been large and jumping between positive and negative. For a second weight, gradients have been small and steady. What will RMSprop do?',
+  o:['Take equally large steps for both weights','Take a smaller step for the first weight and a larger step for the second','Take a larger step for the first weight and a smaller step for the second','Stop updating the first weight entirely'],a:1,
+  e:'<strong>Smaller step for the first weight, larger for the second.</strong> RMSprop divides the step by the square root of the running average of squared gradients. Large, noisy gradients build up a large <var>S</var><sub>dW</sub> and get a smaller effective step; small, steady gradients keep a small <var>S</var><sub>dW</sub> and get a comparatively larger one.'},
+ q5:{q:'Using η<sub>epoch</sub> = η<sub>0</sub> / (1 + <var>r</var><sub>0</sub> · epoch), if η<sub>0</sub> = 0.02, <var>r</var><sub>0</sub> = 0.05 and epoch = 20, what is η<sub>epoch</sub>?',
+  o:['0.005','0.010','0.015','0.020'],a:1,
+  e:'<strong>0.010.</strong> η<sub>epoch</sub> = 0.02 / (1 + 0.05 × 20) = 0.02 / (1 + 1.0) = 0.02 / 2 = 0.010.'}
+};
+$$('.quiz-slot').forEach(slot=>{
+  const id=slot.dataset.quiz,d=QUIZ[id];
+  slot.innerHTML=`<fieldset class="quiz"><legend>Check yourself</legend><p class="q">${d.q}</p><div class="opts">`+
+    d.o.map((t,i)=>`<label class="opt"><input type="radio" name="${id}" value="${i}"><span>${t}</span></label>`).join('')+
+    `</div><div class="fb" role="status" aria-live="polite"></div></fieldset>`;
+  const fb=$('.fb',slot);
+  $$('input',slot).forEach(inp=>inp.addEventListener('change',()=>{
+    const i=+inp.value,lab=inp.closest('.opt');
+    if(i===d.a){$$('.opt',slot).forEach(o=>o.classList.remove('wrong'));lab.classList.add('right');fb.className='fb ok';fb.innerHTML='<span class="verdict">✓ Correct.</span> '+d.e;}
+    else{lab.classList.add('wrong');fb.className='fb no';fb.innerHTML='<span class="verdict">✕ Not quite.</span> Try another option.';}
+  }));
+});
+
+/* ---------- SVG helpers ---------- */
+function mk(shape,x,y,r,color,extra){
+  const st=`style="fill:${color};stroke:var(--paper)" stroke-width="1.4" ${extra||''}`;
+  x=+x.toFixed(1);y=+y.toFixed(1);
+  if(shape==='square')return `<rect x="${x-r}" y="${y-r}" width="${2*r}" height="${2*r}" ${st}/>`;
+  if(shape==='triangle')return `<polygon points="${x},${y-r*1.25} ${x-r*1.15},${y+r*.95} ${x+r*1.15},${y+r*.95}" ${st}/>`;
+  if(shape==='diamond')return `<polygon points="${x},${y-r*1.3} ${x+r*1.3},${y} ${x},${y+r*1.3} ${x-r*1.3},${y}" ${st}/>`;
+  return `<circle cx="${x}" cy="${y}" r="${r}" ${st}/>`;
+}
+function chart(o){
+  const W=o.W,H=o.H,ml=o.ml||54,mr=14,mt=12,mb=o.mb||44,pw=W-ml-mr,ph=H-mt-mb;
+  const X=x=>ml+(x-o.x0)/(o.x1-o.x0)*pw, Y=y=>mt+(o.y1-y)/(o.y1-o.y0)*ph;
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${o.label}"><defs><clipPath id="${o.id}"><rect x="${ml}" y="${mt}" width="${pw}" height="${ph}"/></clipPath></defs>`;
+  o.yt.forEach(([v,l])=>{s+=`<line class="grid" x1="${ml}" x2="${W-mr}" y1="${Y(v)}" y2="${Y(v)}"/><text class="tick" x="${ml-8}" y="${Y(v)+4}" text-anchor="end">${l}</text>`;});
+  o.xt.forEach(([v,l])=>{s+=`<line class="grid" x1="${X(v)}" x2="${X(v)}" y1="${mt}" y2="${mt+ph}"/><text class="tick" x="${X(v)}" y="${mt+ph+17}" text-anchor="middle">${l}</text>`;});
+  s+=`<line class="axis" x1="${ml}" x2="${W-mr}" y1="${mt+ph}" y2="${mt+ph}"/><line class="axis" x1="${ml}" x2="${ml}" y1="${mt}" y2="${mt+ph}"/>`;
+  s+=`<text class="lab" x="${ml+pw/2}" y="${H-6}" text-anchor="middle">${o.xlabel}</text><text class="lab" transform="translate(13 ${mt+ph/2}) rotate(-90)" text-anchor="middle">${o.ylabel}</text>`;
+  o.series.forEach(se=>{
+    const pts=se.pts.filter(p=>isFinite(p.y));
+    if(se.line!==false&&pts.length>1)s+=`<polyline clip-path="url(#${o.id})" fill="none" style="stroke:${se.color}" stroke-width="${se.w||2.4}" ${se.dash?`stroke-dasharray="${se.dash}"`:''} stroke-linejoin="round" points="${pts.map(p=>X(p.x).toFixed(1)+','+Y(p.y).toFixed(1)).join(' ')}"/>`;
+    if(se.shape)pts.forEach(p=>{s+=mk(se.shape,X(p.x),Y(p.y),se.r||3,se.color,se.op?`fill-opacity="${se.op}"`:'');});
+  });
+  if(o.extra)s+=o.extra(X,Y,{ml,mt,pw,ph});
+  return s+'</svg>';
+}
+const ticks=(n)=>{const st=n<=20?5:n<=50?10:20;const a=[];for(let i=0;i<=n;i+=st)a.push([i,String(i)]);return a;};
+
+/* ---------- optimisers on the valley ---------- */
+const OPT={
+  vanilla:{name:'Vanilla GD',color:'var(--c-vanilla)',shape:'circle',dash:'6 4'},
+  momentum:{name:'Momentum',color:'var(--c-momentum)',shape:'square',dash:''},
+  rmsprop:{name:'RMSprop',color:'var(--c-rms)',shape:'triangle',dash:'2 4'},
+  adam:{name:'Adam',color:'var(--c-adam)',shape:'diamond',dash:''}
+};
+const L=(w)=>0.05*w[0]*w[0]+5*w[1]*w[1];
+function sim(kind,lr,b1,b2,n){
+  let w=[4,4],v=[0,0],s=[0,0];const eps=1e-8,p=[w.slice()];
+  for(let t=1;t<=n;t++){
+    const g=[0.1*w[0],10*w[1]],nw=[0,0];
+    for(let i=0;i<2;i++){
+      if(kind==='vanilla')nw[i]=w[i]-lr*g[i];
+      else if(kind==='momentum'){v[i]=b1*v[i]+(1-b1)*g[i];nw[i]=w[i]-lr*v[i];}
+      else if(kind==='rmsprop'){s[i]=b2*s[i]+(1-b2)*g[i]*g[i];nw[i]=w[i]-lr*g[i]/(Math.sqrt(s[i])+eps);}
+      else{v[i]=b1*v[i]+(1-b1)*g[i];s[i]=b2*s[i]+(1-b2)*g[i]*g[i];
+        const vh=v[i]/(1-Math.pow(b1,t)),sh=s[i]/(1-Math.pow(b2,t));nw[i]=w[i]-lr*vh/(Math.sqrt(sh)+eps);}
+    }
+    w=nw;p.push(w.slice());
+  }
+  return p;
+}
+function keyHTML(k){const o=OPT[k];return `<svg width="32" height="14" viewBox="0 0 32 14" aria-hidden="true"><line x1="1" x2="31" y1="7" y2="7" style="stroke:${o.color}" stroke-width="2.4" ${o.dash?`stroke-dasharray="${o.dash}"`:''}/>${mk(o.shape,16,7,4,o.color)}</svg>${o.name}`;}
+
+function routeSVG(uid,paths,shown,W,compact){
+  const H=Math.max(260,Math.round(W*(compact?.78:.8))),ml=compact?34:40,mr=12,mt=10,mb=34,pw=W-ml-mr,ph=H-mt-mb;
+  const X=v=>ml+(v+5)/10*pw,Y=v=>mt+(5-v)/10*ph;
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Contour map of a narrow valley loss surface. Routes from the start at (4, 4) toward the hub at (0, 0) for: ${Object.keys(paths).map(k=>OPT[k].name).join(', ')||'no optimiser selected'}."><defs><clipPath id="${uid}c"><rect x="${ml}" y="${mt}" width="${pw}" height="${ph}"/></clipPath></defs>`;
+  s+=`<rect x="${ml}" y="${mt}" width="${pw}" height="${ph}" style="fill:var(--bg)"/><g clip-path="url(#${uid}c)">`;
+  for(let k=1;k<=20;k++){const c=126.25*Math.pow(k/20,2);s+=`<ellipse class="contour" cx="${X(0)}" cy="${Y(0)}" rx="${(Math.sqrt(c/0.05)*pw/10).toFixed(1)}" ry="${(Math.sqrt(c/5)*ph/10).toFixed(1)}"/>`;}
+  s+='</g>';
+  [-4,-2,0,2,4].forEach(v=>{s+=`<text class="tick" x="${X(v)}" y="${mt+ph+15}" text-anchor="middle">${v}</text><text class="tick" x="${ml-6}" y="${Y(v)+4}" text-anchor="end">${v}</text>`;});
+  s+=`<rect x="${ml}" y="${mt}" width="${pw}" height="${ph}" fill="none" class="axis"/><text class="lab" x="${ml+pw/2}" y="${H-4}" text-anchor="middle">w₁ (gentle direction)</text><text class="lab" transform="translate(11 ${mt+ph/2}) rotate(-90)" text-anchor="middle">w₂ (steep direction)</text>`;
+  s+=`<g clip-path="url(#${uid}c)">`;
+  Object.keys(paths).forEach(k=>{
+    const o=OPT[k],pts=paths[k].slice(0,shown+1);
+    s+=`<polyline fill="none" style="stroke:${o.color}" stroke-width="2.2" ${o.dash?`stroke-dasharray="${o.dash}"`:''} stroke-linejoin="round" points="${pts.map(p=>X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join(' ')}"/>`;
+    if(shown<=60)pts.slice(1,-1).forEach(p=>{s+=mk(o.shape,X(p[0]),Y(p[1]),2.6,o.color);});
+    const e=pts[pts.length-1];s+=mk(o.shape,X(e[0]),Y(e[1]),5.5,o.color);
+  });
+  s+='</g>';
+  s+=`<circle cx="${X(4)}" cy="${Y(4)}" r="6" fill="none" style="stroke:var(--forest)" stroke-width="2"/><text class="note" x="${X(4)-10}" y="${Y(4)+4}" text-anchor="end">start</text>`;
+  const sx=X(0),sy=Y(0),R=9,star=[];for(let i=0;i<10;i++){const r=i%2?R*.45:R,a=-Math.PI/2+i*Math.PI/5;star.push((sx+r*Math.cos(a)).toFixed(1)+','+(sy+r*Math.sin(a)).toFixed(1));}
+  s+=`<polygon points="${star.join(' ')}" style="fill:var(--forest);stroke:var(--paper)" stroke-width="1.2"/><text class="note" x="${sx+13}" y="${sy-10}">hub (minimum)</text>`;
+  return s+'</svg>';
+}
+
+const widgets=[];
+const CTL={
+  lr:{l:'Learning rate η',min:.01,max:.2,step:.01,f:v=>v.toFixed(2)},
+  b1:{l:'β₁ (momentum)',min:.5,max:.99,step:.01,f:v=>v.toFixed(2)},
+  b2:{l:'β₂ (RMSprop)',min:.9,max:.999,step:.001,f:v=>v.toFixed(3)},
+  n:{l:'Steps',min:5,max:100,step:1,f:v=>String(v)}
+};
+function playground(root,cfg){
+  const uid='pg'+widgets.length,DEF={lr:.08,b1:.9,b2:.99,n:40};
+  const S=Object.assign({},DEF,{shown:40,on:new Set(cfg.opts)});
+  const ctl=cfg.controls||[];let raf=null;
+  root.innerHTML=
+    (cfg.title?`<p class="wt">${cfg.title}</p>`:'')+(cfg.desc?`<p class="wd">${cfg.desc}</p>`:'')+
+    (ctl.length?`<div class="ctls">`+ctl.map(k=>`<div class="ctl"><label for="${uid}-${k}">${CTL[k].l} <output id="${uid}-${k}-o">${CTL[k].f(S[k])}</output></label><input id="${uid}-${k}" type="range" min="${CTL[k].min}" max="${CTL[k].max}" step="${CTL[k].step}" value="${S[k]}"></div>`).join('')+`</div>`:'')+
+    `<div class="btns"><button class="btn pri" type="button" data-a="play">${cfg.compact?'Replay the race':'Replay the ride'}</button>`+(ctl.length?`<button class="btn" type="button" data-a="reset">Reset sliders</button>`:'')+`</div>`+
+    `<div class="keys">`+cfg.opts.map(k=>cfg.toggle?`<label class="key"><input type="checkbox" data-k="${k}" checked>${keyHTML(k)}</label>`:`<span class="key">${keyHTML(k)}</span>`).join('')+`</div>`+
+    `<div class="plots${cfg.compact?' single':''}"><div class="route"></div>`+(cfg.compact?'':`<div><div class="loss"></div><table class="ro"><caption>Where each route stands</caption><thead><tr><th scope="col">Optimiser</th><th scope="col">Position (w₁, w₂)</th><th scope="col">Loss</th></tr></thead><tbody></tbody></table></div>`)+`</div>`+
+    (cfg.hint?`<p class="hint">${cfg.hint}</p>`:'')+(cfg.cap?`<p class="cap">${cfg.cap}</p>`:'');
+  const routeEl=$('.route',root),lossEl=$('.loss',root),tb=$('tbody',root);
+  function render(){
+    const paths={};cfg.opts.forEach(k=>{if(S.on.has(k))paths[k]=sim(k,S.lr,S.b1,S.b2,S.n);});
+    routeEl.innerHTML=routeSVG(uid,paths,S.shown,fit(routeEl),cfg.compact);
+    if(lossEl){
+      const W=fit(lossEl),series=[];
+      Object.keys(paths).forEach(k=>{
+        const o=OPT[k],pts=paths[k].slice(0,S.shown+1).map((p,i)=>({x:i,y:Math.log10(Math.max(L(p),1e-4))}));
+        series.push({pts,color:o.color,dash:o.dash,w:2.2});
+        series.push({pts:pts.filter((p,i)=>i%(S.n>40?10:5)===0||i===pts.length-1),line:false,shape:o.shape,r:3.6,color:o.color});
+      });
+      lossEl.innerHTML=chart({id:uid+'l',W,H:Math.max(210,Math.round(W*.55)),x0:0,x1:S.n,y0:-4,y1:2,xt:ticks(S.n),yt:[[-4,'0.0001'],[-2,'0.01'],[0,'1'],[2,'100']],xlabel:'step',ylabel:'loss (log scale)',label:'Loss against step on a log scale for the selected optimisers. The table below gives the same values as numbers.',series});
+      tb.innerHTML=Object.keys(paths).map(k=>{const p=paths[k][S.shown];return `<tr><td>${keyHTML(k)}</td><td>(${p[0].toFixed(2)}, ${p[1].toFixed(2)})</td><td>${fmtN(L(p))}</td></tr>`;}).join('')||'<tr><td colspan="3">Select at least one optimiser.</td></tr>';
+    }
+  }
+  function stop(){if(raf){cancelAnimationFrame(raf);raf=null;}}
+  function play(){
+    stop();
+    if(reduced){S.shown=S.n;render();return;}
+    S.shown=0;render();let last=0;
+    const tick=ts=>{if(ts-last>(cfg.compact?70:50)){S.shown++;last=ts;render();}raf=S.shown<S.n?requestAnimationFrame(tick):null;};
+    raf=requestAnimationFrame(tick);
+  }
+  ctl.forEach(k=>{const inp=$('#'+uid+'-'+k,root),out=$('#'+uid+'-'+k+'-o',root);
+    inp.addEventListener('input',()=>{S[k]=+inp.value;out.textContent=CTL[k].f(S[k]);stop();S.shown=S.n;render();});});
+  $$('[data-k]',root).forEach(c=>c.addEventListener('change',()=>{c.checked?S.on.add(c.dataset.k):S.on.delete(c.dataset.k);stop();S.shown=S.n;render();}));
+  $('[data-a=play]',root).addEventListener('click',play);
+  const rs=$('[data-a=reset]',root);
+  if(rs)rs.addEventListener('click',()=>{Object.assign(S,DEF);ctl.forEach(k=>{$('#'+uid+'-'+k,root).value=S[k];$('#'+uid+'-'+k+'-o',root).textContent=CTL[k].f(S[k]);});stop();S.shown=S.n;render();});
+  const w={render,play};widgets.push(w);render();return w;
+}
+
+const hero=playground($('#pg-hero'),{opts:['vanilla','momentum','rmsprop','adam'],compact:true,
+  cap:'Four optimisers, one starting point, one hill. Learning rate 0.08, β₁ = 0.9, β₂ = 0.99, 40 steps.'});
+if(!reduced)setTimeout(hero.play,500);
+
+playground($('#pg-slow'),{opts:['vanilla'],controls:['lr','n'],title:'Vanilla gradient descent on the valley',
+  desc:'A toy version of Aria’s hill. Watch the route as you change the learning rate.',
+  hint:'<b>Try this:</b> raise η past 0.10. On this hill the steep direction’s gradient is 10 · <var>w</var><sub>2</sub>, so every step multiplies <var>w</var><sub>2</sub> by (1 − 10η). Beyond 0.10 that factor is negative and the route flips sides each step; at 0.20 it stops settling. This demo uses exact gradients on a smooth hill, so it shows the valley-shape effect but not mini-batch noise.'});
+
+playground($('#pg-mom'),{opts:['vanilla','momentum'],controls:['lr','b1','n'],title:'Momentum vs vanilla on the valley',
+  desc:'Same hill, same start, same learning rate.',
+  hint:'<b>Try this:</b> momentum blends past and present directions, so its route bends: it overshoots the valley floor and swings back. A higher β₁ lets it swing further across the floor before turning.'});
+
+playground($('#pg-rms'),{opts:['vanilla','rmsprop'],controls:['lr','b2','n'],title:'RMSprop vs vanilla on the valley',
+  desc:'Same hill, same start, same learning rate.',
+  hint:'<b>Try this:</b> RMSprop divides each coordinate’s step by its own √<var>S</var>, so the gentle <var>w</var><sub>1</sub> direction is no longer left behind while <var>w</var><sub>2</sub> is tamed.'});
+
+playground($('#pg-adam'),{opts:['momentum','rmsprop','adam'],controls:['lr','b1','b2','n'],title:'Adam next to its two ingredients',
+  desc:'Momentum, RMSprop and Adam on the same hill.',
+  hint:'<b>Try this:</b> because of the normalisation, Adam’s first steps are about η in size for each weight. If it looks slow at a small η, raise the learning rate and replay.'});
+
+playground($('#pg-full'),{opts:['vanilla','momentum','rmsprop','adam'],controls:['lr','b1','b2','n'],toggle:true,title:'Aria’s routes down the hill',
+  desc:'All four optimisers, with the same update rules as the notebook’s interactive demo.',
+  hint:'<b>Try this:</b> compare the routes and the loss curves together. A route that reaches the hub quickly shows up as a curve that drops early; a route that overshoots shows up as a bump.'});
+
+let rz=null;window.addEventListener('resize',()=>{cancelAnimationFrame(rz);rz=requestAnimationFrame(()=>{widgets.forEach(w=>w.render());drawAll();});});
+
+/* ---------- moons illustration ---------- */
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function gauss(r){return Math.sqrt(-2*Math.log(1-r()))*Math.cos(2*Math.PI*r());}
+const moonPts=(()=>{const r=rng(7),A=[],B=[];for(let i=0;i<220;i++){const a=Math.PI*r();A.push([Math.cos(a)+.25*gauss(r),Math.sin(a)+.25*gauss(r)]);const b=Math.PI*r();B.push([1-Math.cos(b)+.25*gauss(r),.5-Math.sin(b)+.25*gauss(r)]);}return{A,B};})();
+function drawMoons(){
+  const el=$('#moons'),W=fit(el),H=Math.round(Math.min(360,W*.62)),ml=44,mb=34,mt=8,mr=10,pw=W-ml-mr,ph=H-mt-mb;
+  const X=x=>ml+(x+1.8)/4.6*pw,Y=y=>mt+(1.9-y)/3.1*ph;
+  let s=`<svg class="chart" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Scatter plot of two interleaved half-moon clusters of neighbourhoods, one drawn as green circles and one as orange triangles. No straight line separates them."><rect x="${ml}" y="${mt}" width="${pw}" height="${ph}" style="fill:var(--bg)" class="axis"/>`;
+  moonPts.A.forEach(p=>{s+=mk('circle',X(p[0]),Y(p[1]),3.2,'var(--c-rms)','fill-opacity=".8"');});
+  moonPts.B.forEach(p=>{s+=mk('triangle',X(p[0]),Y(p[1]),3.2,'var(--c-momentum)','fill-opacity=".85"');});
+  s+=`<text class="lab" x="${ml+pw/2}" y="${H-8}" text-anchor="middle">feature 1 (order frequency)</text><text class="lab" transform="translate(13 ${mt+ph/2}) rotate(-90)" text-anchor="middle">feature 2 (basket size)</text></svg>`;
+  el.innerHTML=s;
+}
+
+/* ---------- EMA explorer ---------- */
+const emaData=(()=>{const r=rng(11),g=[];for(let t=1;t<=40;t++)g.push(.6+.25*Math.sin(t/6)+(r()-.5)*1.2);return g;})();
+const emaB=$('#ema-b');
+function drawEMA(){
+  const beta=+emaB.value;$('#ema-b-o').textContent=beta.toFixed(2);
+  const V=[0];emaData.forEach((g,i)=>V.push(beta*V[i]+(1-beta)*g));
+  const el=$('#ema-chart'),W=fit(el);
+  el.innerHTML=chart({id:'emac',W,H:Math.max(220,Math.round(W*.5)),x0:0,x1:40,y0:-.5,y1:1.5,xt:ticks(40),yt:[[-.5,'−0.5'],[0,'0'],[.5,'0.5'],[1,'1'],[1.5,'1.5']],xlabel:'step t',ylabel:'gradient value',
+    label:'Noisy gradient readings as dots and their exponential moving average as a line, for the chosen beta.',
+    series:[{pts:emaData.map((g,i)=>({x:i+1,y:g})),line:false,shape:'circle',r:3.4,color:'var(--c-vanilla)',op:.75},{pts:V.map((v,i)=>({x:i,y:v})),color:'var(--c-momentum)',w:3.2}]});
+}
+emaB.addEventListener('input',drawEMA);
+const cb=$('#c-b'),cv=$('#c-v'),cg=$('#c-g');
+function calc(){
+  const b=+cb.value,v=+cv.value,g=+cg.value,r=b*v+(1-b)*g;
+  $('#c-b-o').textContent=b.toFixed(2);$('#c-v-o').textContent=v.toFixed(2);$('#c-g-o').textContent=g.toFixed(2);
+  $('#c-out').innerHTML=`V<sub>t</sub> = ${b.toFixed(2)} × ${v.toFixed(2)} + ${(1-b).toFixed(2)} × ${g.toFixed(2)} = <em>${r.toFixed(3)}</em>`;
+}
+[cb,cv,cg].forEach(i=>i.addEventListener('input',calc));
+
+/* ---------- bias correction ---------- */
+const bb=$('#bias-b');
+function drawBias(){
+  const b=+bb.value;$('#bias-b-o').textContent=b.toFixed(2);
+  const N=30,raw=[],cor=[];for(let t=0;t<=N;t++){const v=1-Math.pow(b,t);raw.push({x:t,y:v});if(t>0)cor.push({x:t,y:v/(1-Math.pow(b,t))});}
+  const el=$('#bias-chart'),W=fit(el);
+  el.innerHTML=chart({id:'biasc',W,H:Math.max(210,Math.round(W*.48)),x0:0,x1:N,y0:0,y1:1.1,xt:ticks(N),yt:[[0,'0'],[.5,'0.5'],[1,'1']],xlabel:'step t',ylabel:'smoothed value',
+    label:'Uncorrected smoothed value rising slowly from zero toward one, and the bias-corrected value sitting at one from the first step.',
+    series:[{pts:raw,color:'var(--c-rms)',dash:'6 4',w:2.4},{pts:raw,line:false,shape:'circle',r:3.2,color:'var(--c-rms)'},{pts:cor,color:'var(--c-momentum)',w:2.4},{pts:cor.filter((p,i)=>i%3===0),line:false,shape:'square',r:3.6,color:'var(--c-momentum)'}]});
+  const v1=1-b;
+  $('#bias-out').innerHTML=`<b>At step 1:</b> uncorrected <var>V</var><sub>1</sub> = ${v1.toFixed(2)}, corrected <var>V̂</var><sub>1</sub> = ${v1.toFixed(2)} / (1 − ${b.toFixed(2)}) = 1.00. <b>At step 10:</b> uncorrected ${(1-Math.pow(b,10)).toFixed(2)}, corrected 1.00.`;
+}
+bb.addEventListener('input',drawBias);
+
+/* ---------- learning rate decay ---------- */
+const de0=$('#d-e0'),dr=$('#d-r'),dep=$('#d-ep');
+function drawDecay(){
+  const e0=+de0.value,r=+dr.value,ep=+dep.value;
+  $('#d-e0-o').textContent=e0.toFixed(3);$('#d-r-o').textContent=r.toFixed(2);$('#d-ep-o').textContent=ep;
+  const N=50,pts=[],cst=[{x:0,y:e0},{x:N,y:e0}];for(let i=0;i<=N;i++)pts.push({x:i,y:e0/(1+r*i)});
+  const cur=e0/(1+r*ep),el=$('#decay-chart'),W=fit(el),f=v=>+v.toPrecision(2)+'';
+  el.innerHTML=chart({id:'decayc',W,H:Math.max(220,Math.round(W*.5)),ml:62,x0:0,x1:N,y0:0,y1:e0*1.08,xt:ticks(N),yt:[[0,'0'],[e0/2,f(e0/2)],[e0,f(e0)]],xlabel:'epoch',ylabel:'learning rate',
+    label:'Learning rate against epoch: a fixed rate as a flat dashed line and the decayed rate as a falling curve, with the chosen epoch marked.',
+    series:[{pts:cst,color:'var(--c-rms)',dash:'6 4',w:2.2},{pts,color:'var(--c-momentum)',w:3.2},{pts:[{x:ep,y:cur}],line:false,shape:'diamond',r:6,color:'var(--forest)'}],
+    extra:(X,Y,g)=>`<line x1="${X(ep)}" x2="${X(ep)}" y1="${Y(cur)}" y2="${g.mt+g.ph}" style="stroke:var(--forest)" stroke-width="1.2" stroke-dasharray="3 3"/>`});
+  $('#decay-out').innerHTML=`At epoch ${ep}: η = ${e0.toFixed(3)} / (1 + ${r.toFixed(2)} × ${ep}) = ${e0.toFixed(3)} / ${(1+r*ep).toFixed(2)} = <em>${cur.toFixed(4)}</em>`;
+}
+[de0,dr,dep].forEach(i=>i.addEventListener('input',drawDecay));
+
+function drawAll(){drawMoons();drawEMA();calc();drawBias();drawDecay();}
+drawAll();
+
+/* ---------- reveal + copy ---------- */
+const gb=$('#gap-btn'),ga=$('#gap-ans');
+gb.addEventListener('click',()=>{const o=ga.hidden;ga.hidden=!o;gb.setAttribute('aria-expanded',o);gb.textContent=o?'Hide the answer':'Reveal the gap';});
+$$('[data-copy]').forEach(b=>b.addEventListener('click',async()=>{
+  const t=$('#'+b.dataset.copy).textContent.trim();
+  try{await navigator.clipboard.writeText(t);b.textContent='Copied';}catch(e){const r=document.createRange();r.selectNodeContents($('#'+b.dataset.copy));const s=getSelection();s.removeAllRanges();s.addRange(r);b.textContent='Selected — press Ctrl/Cmd+C';}
+  setTimeout(()=>b.textContent='Copy prompt',2200);
+}));
+})();
+</script>
+</body>
+</html>
