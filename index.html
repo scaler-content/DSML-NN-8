@@ -304,12 +304,11 @@ import matplotlib.pyplot as plt
 from sklearn.datasets import make_moons
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
-import tensorflow as tf
-from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Dense
+import torch
+import torch.nn as nn
 
 np.random.seed(7)
-tf.random.set_seed(7)
+torch.manual_seed(7)
 
 # Simulated neighbourhood demand data: two engineered features, non-linear boundary
 X, y = make_moons(n_samples=1500, noise=0.25, random_state=7)
@@ -321,17 +320,33 @@ plt.xlabel("feature 1 (standardised order frequency)")
 plt.ylabel("feature 2 (standardised basket size)")
 plt.show()
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=7)
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=7
+)
+
 scaler = StandardScaler()
+
 X_train = scaler.fit_transform(X_train)
 X_test = scaler.transform(X_test)
 
+
 def build_model():
-    model = Sequential([
-        Dense(16, activation="relu"),
-        Dense(16, activation="relu"),
-        Dense(1, activation="sigmoid")
-    ])
+    model = nn.Sequential(
+        nn.Linear(2, 16),
+        nn.ReLU(),
+
+        nn.Linear(16, 16),
+        nn.ReLU(),
+
+        nn.Linear(16, 1),
+        nn.Sigmoid()
+    )
+
+    for layer in model:
+        if isinstance(layer, nn.Linear):
+            nn.init.xavier_uniform_(layer.weight)
+            nn.init.zeros_(layer.bias)
+
     return model</code></pre></details>
 </section>
 
@@ -352,19 +367,71 @@ def build_model():
   <div class="quiz-slot" data-quiz="q1"></div>
 
   <h3>Training it on the NovaMart data</h3>
-  <details class="code"><summary>Show the Keras code</summary><pre><code class="py">model_vanilla = build_model()
-model_vanilla.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=0.05),
-                       loss="binary_crossentropy")
+  <details class="code"><summary>Show the PyTorch code</summary><pre><code class="py">torch.manual_seed(7)
 
-history_vanilla = model_vanilla.fit(X_train, y_train, validation_data=(X_test, y_test),
-                                     epochs=15, batch_size=64, verbose=0)
+model_vanilla = build_model()
 
-plt.plot(history_vanilla.history["loss"], label="train")
-plt.plot(history_vanilla.history["val_loss"], label="validation")
+criterion = nn.BCELoss()
+optimizer = torch.optim.SGD(
+    model_vanilla.parameters(),
+    lr=0.05
+)
+
+history_vanilla = {
+    "loss": [],
+    "val_loss": []
+}
+
+X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+y_train_tensor = torch.tensor(y_train, dtype=torch.float32).view(-1, 1)
+
+X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
+y_test_tensor = torch.tensor(y_test, dtype=torch.float32).view(-1, 1)
+
+for epoch in range(15):
+    model_vanilla.train()
+
+    permutation = torch.randperm(X_train_tensor.size(0))
+
+    epoch_loss = 0.0
+
+    for i in range(0, X_train_tensor.size(0), 64):
+        indices = permutation[i:i + 64]
+
+        X_batch = X_train_tensor[indices]
+        y_batch = y_train_tensor[indices]
+
+        optimizer.zero_grad()
+
+        y_pred = model_vanilla(X_batch)
+        loss = criterion(y_pred, y_batch)
+
+        loss.backward()
+        optimizer.step()
+
+        epoch_loss += loss.item() * len(indices)
+
+    epoch_loss /= X_train_tensor.size(0)
+
+    model_vanilla.eval()
+
+    with torch.no_grad():
+        y_val_pred = model_vanilla(X_test_tensor)
+        val_loss = criterion(y_val_pred, y_test_tensor).item()
+
+    history_vanilla["loss"].append(epoch_loss)
+    history_vanilla["val_loss"].append(val_loss)
+
+plt.plot(history_vanilla["loss"], label="train")
+plt.plot(history_vanilla["val_loss"], label="validation")
+
 plt.title("Vanilla Gradient Descent: 15 epochs")
-plt.xlabel("epoch"); plt.ylabel("loss"); plt.legend(); plt.show()</code></pre></details>
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()</code></pre></details>
   <figure class="shot">
-    <img data-fallback loading="lazy" width="500" src="https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/243/395/original/img6.png?1790677923" alt="Line chart of training and validation loss over 15 epochs for vanilla gradient descent.">
+    <img data-fallback loading="lazy" width="500" src="https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/243/426/original/download.png?1790682644" alt="Line chart of training and validation loss over 15 epochs for vanilla gradient descent.">
     <p class="fail">The notebook’s loss chart could not be loaded (it needs an internet connection).</p>
     <figcaption>Notebook result: vanilla gradient descent, 15 epochs, learning rate 0.05.</figcaption>
   </figure>
@@ -415,19 +482,66 @@ plt.xlabel("epoch"); plt.ylabel("loss"); plt.legend(); plt.show()</code></pre></
   <div class="fblock"><div class="formula"><math display="block" aria-label="V dW equals beta times V dW plus one minus beta times the gradient"><mrow><mrow data-term="v"><msub><mi>V</mi><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow><mo>=</mo><mrow data-term="beta"><mi>β</mi></mrow><mo>⋅</mo><mrow data-term="v"><msub><mi>V</mi><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow><mo>+</mo><mo>(</mo><mn>1</mn><mo>−</mo><mrow data-term="beta"><mi>β</mi></mrow><mo>)</mo><mo>⋅</mo><mrow data-term="grad"><mfrac><mrow><mo>∂</mo><mi>L</mi></mrow><mrow><mo>∂</mo><mi>W</mi></mrow></mfrac></mrow></mrow></math><math display="block" aria-label="W becomes W minus eta times V dW"><mrow><mi>W</mi><mo>←</mo><mi>W</mi><mo>−</mo><mrow data-term="eta"><mi>η</mi></mrow><mo>⋅</mo><mrow data-term="v"><msub><mi>V</mi><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow></mrow></math></div><div class="chips" role="group" aria-label="Terms in the formula. Select one to highlight it."><button type="button" class="chip" data-term="v" aria-pressed="false"><span class="sym"><math><mrow><msub><mi>V</mi><mrow><mi>d</mi><mi>W</mi></mrow></msub></mrow></math></span><span>the running, smoothed gradient (Aria’s blended sense of “downhill”)</span></button><button type="button" class="chip" data-term="beta" aria-pressed="false"><span class="sym"><math><mrow><mi>β</mi></mrow></math></span><span>how much of the previous direction carries over</span></button><button type="button" class="chip" data-term="grad" aria-pressed="false"><span class="sym"><math><mrow><mfrac><mrow><mo>∂</mo><mi>L</mi></mrow><mrow><mo>∂</mo><mi>W</mi></mrow></mfrac></mrow></math></span><span>the raw gradient at this step</span></button><button type="button" class="chip" data-term="eta" aria-pressed="false"><span class="sym"><math><mrow><mi>η</mi></mrow></math></span><span>the learning rate, as before</span></button></div></div>
   <div class="callout aria"><span class="ttl">Aria’s version</span><p>A bicycle picks up speed rolling downhill and doesn’t change direction over every small bump. Momentum lets the optimiser build up speed along the valley floor while cancelling out the side-to-side swerving.</p></div>
   <div class="widget" id="pg-mom"></div>
-  <details class="code"><summary>Show the Keras code</summary><pre><code class="py">model_momentum = build_model()
-model_momentum.compile(optimizer=tf.keras.optimizers.SGD(learning_rate=0.05, momentum=0.9),
-                        loss="binary_crossentropy")
+  <details class="code"><summary>Show the PyTorch code</summary><pre><code class="py">model_momentum = build_model()
 
-history_momentum = model_momentum.fit(X_train, y_train, validation_data=(X_test, y_test),
-                                       epochs=15, batch_size=64, verbose=0)
+criterion = nn.BCELoss()
+optimizer_momentum = torch.optim.SGD(
+    model_momentum.parameters(),
+    lr=0.05,
+    momentum=0.9
+)
 
-plt.plot(history_vanilla.history["loss"], label="vanilla GD")
-plt.plot(history_momentum.history["loss"], label="GD + momentum")
+history_momentum = {
+    "loss": [],
+    "val_loss": []
+}
+
+X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+y_train_tensor = torch.tensor(y_train, dtype=torch.float32).view(-1, 1)
+
+X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
+y_test_tensor = torch.tensor(y_test, dtype=torch.float32).view(-1, 1)
+
+for epoch in range(15):
+    model_momentum.train()
+
+    permutation = torch.randperm(X_train_tensor.size(0))
+    epoch_loss = 0.0
+
+    for i in range(0, X_train_tensor.size(0), 64):
+        indices = permutation[i:i + 64]
+
+        X_batch = X_train_tensor[indices]
+        y_batch = y_train_tensor[indices]
+
+        optimizer_momentum.zero_grad()
+
+        y_pred = model_momentum(X_batch)
+        loss = criterion(y_pred, y_batch)
+
+        loss.backward()
+        optimizer_momentum.step()
+
+        epoch_loss += loss.item() * len(indices)
+
+    epoch_loss /= X_train_tensor.size(0)
+
+    model_momentum.eval()
+
+    with torch.no_grad():
+        y_val_pred = model_momentum(X_test_tensor)
+        val_loss = criterion(y_val_pred, y_test_tensor).item()
+
+    history_momentum["loss"].append(epoch_loss)
+    history_momentum["val_loss"].append(val_loss)
+
+plt.plot(history_vanilla["loss"], label="vanilla GD")
+plt.plot(history_momentum["loss"], label="GD + momentum")
+
 plt.title("Vanilla GD vs Momentum: 15 epochs")
 plt.xlabel("epoch"); plt.ylabel("loss"); plt.legend(); plt.show()</code></pre></details>
   <figure class="shot">
-    <img data-fallback loading="lazy" width="500" src="https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/243/397/original/img7.png?1790678041" alt="Line chart comparing loss over 15 epochs for vanilla gradient descent and gradient descent with momentum.">
+    <img data-fallback loading="lazy" width="500" src="https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/243/427/original/download_%281%29.png?1790682714" alt="Line chart comparing loss over 15 epochs for vanilla gradient descent and gradient descent with momentum.">
     <p class="fail">The notebook’s loss chart could not be loaded (it needs an internet connection).</p>
     <figcaption>Notebook result: vanilla gradient descent vs momentum, same 15 epochs and learning rate.</figcaption>
   </figure>
@@ -484,20 +598,67 @@ plt.xlabel("epoch"); plt.ylabel("loss"); plt.legend(); plt.show()</code></pre></
 
   <div class="widget" id="pg-adam"></div>
 
-  <details class="code"><summary>Show the Keras code</summary><pre><code class="py">model_adam = build_model()
-model_adam.compile(optimizer=tf.keras.optimizers.Adam(learning_rate=0.01, beta_1=0.9, beta_2=0.999),
-                    loss="binary_crossentropy")
+  <details class="code"><summary>Show the PyTorch code</summary><pre><code class="py">model_adam = build_model()
 
-history_adam = model_adam.fit(X_train, y_train, validation_data=(X_test, y_test),
-                               epochs=15, batch_size=64, verbose=0)
+criterion = nn.BCELoss()
+optimizer_adam = torch.optim.Adam(
+    model_adam.parameters(),
+    lr=0.01,
+    betas=(0.9, 0.999)
+)
 
-plt.plot(history_vanilla.history["loss"], label="vanilla GD")
-plt.plot(history_momentum.history["loss"], label="momentum")
-plt.plot(history_adam.history["loss"], label="adam")
+history_adam = {
+    "loss": [],
+    "val_loss": []
+}
+
+X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
+y_train_tensor = torch.tensor(y_train, dtype=torch.float32).view(-1, 1)
+
+X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
+y_test_tensor = torch.tensor(y_test, dtype=torch.float32).view(-1, 1)
+
+for epoch in range(15):
+    model_adam.train()
+
+    permutation = torch.randperm(X_train_tensor.size(0))
+    epoch_loss = 0.0
+
+    for i in range(0, X_train_tensor.size(0), 64):
+        indices = permutation[i:i + 64]
+
+        X_batch = X_train_tensor[indices]
+        y_batch = y_train_tensor[indices]
+
+        optimizer_adam.zero_grad()
+
+        y_pred = model_adam(X_batch)
+        loss = criterion(y_pred, y_batch)
+
+        loss.backward()
+        optimizer_adam.step()
+
+        epoch_loss += loss.item() * len(indices)
+
+    epoch_loss /= X_train_tensor.size(0)
+
+    model_adam.eval()
+
+    with torch.no_grad():
+        y_val_pred = model_adam(X_test_tensor)
+        val_loss = criterion(y_val_pred, y_test_tensor).item()
+
+    history_adam["loss"].append(epoch_loss)
+    history_adam["val_loss"].append(val_loss)
+
+plt.plot(history_vanilla["loss"], label="vanilla GD")
+plt.plot(history_momentum["loss"], label="momentum")
+plt.plot(history_adam["loss"], label="adam")
+
 plt.title("Vanilla GD vs Momentum vs Adam: 15 epochs")
 plt.xlabel("epoch"); plt.ylabel("loss"); plt.legend(); plt.show()</code></pre></details>
   <figure class="shot">
-    <img data-fallback loading="lazy" width="600" src="https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/243/401/original/img9.png?1790678367" alt="Line chart comparing loss over 15 epochs for vanilla gradient descent, momentum and Adam.">
+    <img data-fallback loading="lazy" width="600" src="https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/243/430/original/download_%282%29.png?1790682810" alt="Line chart comparing loss over 15 epochs for vanilla gradient descent, momentum and Adam.">
     <p class="fail">The notebook’s loss chart could not be loaded (it needs an internet connection).</p>
     <figcaption>Notebook result: vanilla GD, momentum and Adam over 15 epochs. Adam used learning rate 0.01, β₁ = 0.9, β₂ = 0.999.</figcaption>
   </figure>
@@ -509,7 +670,7 @@ plt.xlabel("epoch"); plt.ylabel("loss"); plt.legend(); plt.show()</code></pre></
   <button class="btn pri" id="gap-btn" aria-expanded="false" aria-controls="gap-ans">Reveal the gap</button>
   <div class="callout note reveal" id="gap-ans" hidden>
     <span class="ttl">What the update rule says</span>
-    <p>In <var>W</var> ← <var>W</var> − <var>η</var> · <var>V̂</var> / (√<var>Ŝ</var> + <var>ε</var>), the learning rate <var>η</var> still multiplies the whole step, so it still has to be chosen (the Keras run above sets 0.01). Adam adapts direction and relative step size using its two running averages; it does not remove <var>η</var>. “Best” is also a claim the lecture does not make.</p>
+    <p>In <var>W</var> ← <var>W</var> − <var>η</var> · <var>V̂</var> / (√<var>Ŝ</var> + <var>ε</var>), the learning rate <var>η</var> still multiplies the whole step, so it still has to be chosen (the PyTorch code above sets <code>lr=0.01</code>). Adam adapts direction and relative step size using its two running averages; it does not remove <var>η</var>. “Best” is also a claim the lecture does not make.</p>
     <p><strong>A more accurate one-liner:</strong> Adam smooths each weight’s direction and scales its step by recent gradient size, but the learning rate <var>η</var> still sets the overall step scale.</p>
   </div>
   <p>Treat any AI-generated technical explanation as a first draft to verify against the actual formula, not a final answer.</p>
@@ -561,62 +722,90 @@ class NovaMartModel(nn.Module):
 # 2. Data Preparation for PyTorch
 # X_train, y_train, X_test, y_test are numpy arrays from previous cells.
 X_train_tensor = torch.tensor(X_train, dtype=torch.float32)
-y_train_tensor = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1) # unsqueeze for BCELoss
+y_train_tensor = torch.tensor(y_train, dtype=torch.float32).unsqueeze(1)
 X_test_tensor = torch.tensor(X_test, dtype=torch.float32)
 y_test_tensor = torch.tensor(y_test, dtype=torch.float32).unsqueeze(1)
 
 batch_size = 64
+
 train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
 test_dataset = TensorDataset(X_test_tensor, y_test_tensor)
 
-train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+train_loader = DataLoader(
+    train_dataset,
+    batch_size=batch_size,
+    shuffle=True
+)
+
+test_loader = DataLoader(
+    test_dataset,
+    batch_size=batch_size,
+    shuffle=False
+)
 
 # 3. PyTorch Model Initialization and Training Setup
-input_features = X_train.shape[1] # Get input dimensions from the prepared data
+input_features = X_train.shape[1]
 model_adam_decay_torch = NovaMartModel(input_features)
 
 initial_lr = 0.01
-optimizer = optim.Adam(model_adam_decay_torch.parameters(), lr=initial_lr, betas=(0.9, 0.999))
-criterion = nn.BCELoss() # Binary Cross Entropy Loss
+
+optimizer = optim.Adam(
+    model_adam_decay_torch.parameters(),
+    lr=initial_lr,
+    betas=(0.9, 0.999)
+)
+
+criterion = nn.BCELoss()
 
 # 4. Learning Rate Scheduler for PyTorch
 decay_rate_r0 = 0.05
+
 def pytorch_lr_lambda(epoch):
-    # The original formula is lr_epoch = initial_lr / (1 + r0 * epoch)
-    # For LambdaLR, this function returns a multiplicative factor for the learning rate.
-    # So, the factor is 1 / (1 + r0 * epoch)
+    # lr_epoch = initial_lr / (1 + r0 * epoch)
     return 1.0 / (1.0 + decay_rate_r0 * epoch)
 
-lr_scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=pytorch_lr_lambda)
+lr_scheduler = optim.lr_scheduler.LambdaLR(
+    optimizer,
+    lr_lambda=pytorch_lr_lambda
+)
 
 # 5. Training Loop
 epochs = 15
+
 history_decay_torch_loss = []
 history_decay_torch_val_loss = []
 
 for epoch in range(epochs):
+
     # Training phase
     model_adam_decay_torch.train()
     running_loss = 0.0
+
     for inputs, labels in train_loader:
         optimizer.zero_grad()
+
         outputs = model_adam_decay_torch(inputs)
+
         loss = criterion(outputs, labels)
+
         loss.backward()
         optimizer.step()
+
         running_loss += loss.item() * inputs.size(0)
 
     epoch_train_loss = running_loss / len(train_dataset)
     history_decay_torch_loss.append(epoch_train_loss)
 
-    # Validation phase (optional, but good for tracking)
+    # Validation phase
     model_adam_decay_torch.eval()
     val_loss = 0.0
+
     with torch.no_grad():
         for inputs, labels in test_loader:
             outputs = model_adam_decay_torch(inputs)
+
             loss = criterion(outputs, labels)
+
             val_loss += loss.item() * inputs.size(0)
 
     epoch_val_loss = val_loss / len(test_dataset)
@@ -626,14 +815,21 @@ for epoch in range(epochs):
     lr_scheduler.step()
 
 # 6. Plotting Results
-plt.plot(history_adam.history["loss"], label="adam (TF)") # Use existing TF history for comparison
-plt.plot(history_decay_torch_loss, label="adam + LR decay (PyTorch)")
+plt.plot(history_adam["loss"], label="adam")
+plt.plot(
+    history_decay_torch_loss,
+    label="adam + LR decay (PyTorch)"
+)
+
 plt.title("Adam vs Adam with Learning Rate Decay (PyTorch)")
-plt.xlabel("epoch"); plt.ylabel("loss"); plt.legend(); plt.show()</code></pre></details>
+plt.xlabel("epoch")
+plt.ylabel("loss")
+plt.legend()
+plt.show()</code></pre></details>
   <figure class="shot">
-    <img data-fallback loading="lazy" width="600" src="https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/243/402/original/img10.png?1790678442" alt="Line chart comparing loss over 15 epochs for Adam in TensorFlow and Adam with learning rate decay in PyTorch.">
+    <img data-fallback loading="lazy" width="600" src="https://d2beiqkhq929f0.cloudfront.net/public_assets/assets/000/243/431/original/download_%283%29.png?1790682876" alt="Line chart comparing loss over 15 epochs for Adam and Adam with learning rate decay.">
     <p class="fail">The notebook’s loss chart could not be loaded (it needs an internet connection).</p>
-    <figcaption>Notebook result: Adam (Keras run) vs Adam with learning rate decay (PyTorch run), 15 epochs.</figcaption>
+    <figcaption>Notebook result: Adam vs Adam with learning rate decay, 15 epochs.</figcaption>
   </figure>
   <div class="quiz-slot" data-quiz="q5"></div>
 </section>
